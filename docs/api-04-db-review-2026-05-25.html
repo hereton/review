@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Database Design Review — permission-center-api04</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+    </script>
+    <style>
+      .seam { stroke-dasharray: 4 4; }
+      .leak { stroke: #dc2626; }
+      .deep { background: linear-gradient(135deg, #0f172a, #1e293b); }
+      .badge-strong { background: #059669; color: white; }
+      .badge-worth { background: #d97706; color: white; }
+      .badge-spec { background: #64748b; color: white; }
+      .diagram-box {
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 12px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+        overflow: auto;
+        min-height: 320px;
+      }
+      .diagram-before { background: #fef2f2; }
+      .diagram-after { background: #f0fdf4; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+      <!-- Header -->
+      <header class="space-y-4">
+        <div class="flex items-baseline justify-between">
+          <h1 class="text-3xl font-bold tracking-tight">Database Design Review</h1>
+          <span class="text-sm text-slate-500">2026-05-25</span>
+        </div>
+        <p class="text-lg text-slate-600">permission-center-api04</p>
+        <p class="text-sm text-slate-500">PostgreSQL + GORM + Azure AD JWT &middot; 18 tables &middot; 56 migrations &middot; RBAC + ABAC permission management</p>
+
+        <!-- Legend -->
+        <div class="flex gap-3 pt-2 text-xs">
+          <span class="badge-strong px-2 py-0.5 rounded">Strong</span>
+          <span class="badge-worth px-2 py-0.5 rounded">Worth Exploring</span>
+          <span class="badge-spec px-2 py-0.5 rounded">Speculative</span>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-4 gap-4 pt-4 text-center">
+          <div class="bg-white rounded-lg border p-3">
+            <div class="text-2xl font-bold text-emerald-700">18</div>
+            <div class="text-xs text-slate-500">surviving tables</div>
+          </div>
+          <div class="bg-white rounded-lg border p-3">
+            <div class="text-2xl font-bold text-emerald-700">56</div>
+            <div class="text-xs text-slate-500">migrations</div>
+          </div>
+          <div class="bg-white rounded-lg border p-3">
+            <div class="text-2xl font-bold text-red-600">7</div>
+            <div class="text-xs text-slate-500">dropped tables</div>
+          </div>
+          <div class="bg-white rounded-lg border p-3">
+            <div class="text-2xl font-bold text-emerald-700">7</div>
+            <div class="text-xs text-slate-500">candidates</div>
+          </div>
+        </div>
+      </header>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 1: Remove Hardcoded DB Credentials -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">1. Remove Hardcoded Database Credentials</h2>
+          <span class="badge-strong px-2 py-0.5 rounded text-xs font-medium">Strong</span>
+        </div>
+
+        <!-- Files -->
+        <div class="bg-slate-50 rounded-lg p-4 text-sm font-mono space-y-1">
+          <div class="text-slate-500">Files:</div>
+          <div>internal/config/config.go <span class="text-slate-400">(64 lines)</span></div>
+        </div>
+
+        <!-- Exact code -->
+        <div class="bg-slate-900 text-slate-100 rounded-lg p-4 text-xs font-mono overflow-x-auto">
+          <div class="text-slate-500">// internal/config/config.go:54-63</div>
+          <pre class="mt-1">func defaultDatabaseURL() string {
+    u := url.URL{
+        Scheme:   "postgresql",
+        Host:     "10.13.112.3:5432",
+        Path:     "/permission-center-nonprod-04",
+        RawQuery: "sslmode=require",
+        User:     url.UserPassword("postgres", <span class="text-red-400">"-Vz*_Vf=}#1sRTD6"</span>),
+    }
+    return u.String()
+}</pre>
+        </div>
+
+        <!-- Problem & Solution -->
+        <div class="space-y-3 text-sm">
+          <div>
+            <span class="font-semibold text-red-700">Problem:</span>
+            Plaintext password embedded at compile time. Binary string extraction, code inspection, or Git history reveals production-like credentials. The <code class="bg-slate-100 px-1 rounded text-xs">Load()</code> function falls back to this default when <code class="bg-slate-100 px-1 rounded text-xs">DATABASE_URL</code> env is empty — deployed containers that misconfigure the env silently use hardcoded credentials.
+          </div>
+          <div>
+            <span class="font-semibold text-emerald-700">Solution:</span>
+            Remove <code class="bg-slate-100 px-1 rounded text-xs">defaultDatabaseURL()</code>. Fail fast at startup if <code class="bg-slate-100 px-1 rounded text-xs">DATABASE_URL</code> is empty. For local dev, use a <code class="bg-slate-100 px-1 rounded text-xs">.env</code> file or direnv.
+          </div>
+        </div>
+
+        <!-- Before / After diagrams -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">Before</div>
+            <div class="diagram-box diagram-before">
+              <pre class="mermaid">
+graph LR
+    CFG["config.go"] -->|"embeds"| CREDS["postgres:-Vz*_Vf=}#1sRTD6"]
+    CREDS -->|"default fallback"| DB["10.13.112.3:5432"]
+    ENV["DATABASE_URL env"] -->|"overrides"| CFG
+    CFG -->|"if empty"| LEAK["credentials baked into binary"]
+              </pre>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">After</div>
+            <div class="diagram-box diagram-after">
+              <pre class="mermaid">
+graph LR
+    CFG["config.go"] -->|"requires"| ENV["DATABASE_URL env"]
+    ENV -->|"validated at startup"| DB["PostgreSQL"]
+    CFG -->|"no default"| FAIL["panic / exit if empty"]
+              </pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">No creds in source</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">No creds in binary</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">Env-only config</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">Fail-fast on misconfig</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 2: Eliminate Dual Status in Applications -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">2. Eliminate Dual Status in Applications</h2>
+          <span class="badge-strong px-2 py-0.5 rounded text-xs font-medium">Strong</span>
+        </div>
+
+        <!-- Files -->
+        <div class="bg-slate-50 rounded-lg p-4 text-sm font-mono space-y-1">
+          <div class="text-slate-500">Files:</div>
+          <div>internal/model/application.go <span class="text-slate-400">(30 lines)</span></div>
+          <div>internal/repository/acl_repository.go <span class="text-slate-400">(lines 97, 115)</span></div>
+          <div>migrations/000026_add_application_metadata_fields.up.sql</div>
+        </div>
+
+        <!-- Exact code -->
+        <div class="bg-slate-900 text-slate-100 rounded-lg p-4 text-xs font-mono overflow-x-auto">
+          <div class="text-slate-500">// model/application.go — two status fields coexist</div>
+          <pre class="mt-1"><span class="text-red-400">IsActive</span> bool   `gorm:"not null;default:true"  json:"is_active"`   // line 11
+<span class="text-amber-400">Status</span>   string `gorm:"size:20;not null;default:'active'" json:"status"` // line 20</pre>
+
+          <div class="text-slate-500 mt-3">// acl_repository.go:97 — ACL uses the legacy boolean</div>
+          <pre class="mt-1">r.db.WithContext(ctx).Where("oid = ? AND <span class="text-red-400">is_active = TRUE</span>", oid).First(&user)
+
+// acl_repository.go:115 — same pattern for app lookup
+r.db.WithContext(ctx).Where("code = ? AND <span class="text-red-400">is_active = TRUE</span>", code).First(&app)</pre>
+        </div>
+
+        <!-- Problem & Solution -->
+        <div class="space-y-3 text-sm">
+          <div>
+            <span class="font-semibold text-red-700">Problem:</span>
+            Two columns encode the same fact. <code class="bg-slate-100 px-1 rounded text-xs">is_active</code> (BOOLEAN, migration 001) is used by ACL queries at the data seam. <code class="bg-slate-100 px-1 rounded text-xs">status</code> (VARCHAR(20), migration 026) is used by the service/UI layer. Migration 026 backfilled <code class="bg-slate-100 px-1 rounded text-xs">status</code> from <code class="bg-slate-100 px-1 rounded text-xs">is_active</code> but never dropped the legacy column. A developer could set <code class="bg-slate-100 px-1 rounded text-xs">status = 'inactive'</code> while <code class="bg-slate-100 px-1 rounded text-xs">is_active = TRUE</code>, creating a split-brain.
+          </div>
+          <div>
+            <span class="font-semibold text-emerald-700">Solution:</span>
+            Drop <code class="bg-slate-100 px-1 rounded text-xs">is_active</code>. Migrate all references to use <code class="bg-slate-100 px-1 rounded text-xs">status = 'active'</code>. Add a migration to drop the column.
+          </div>
+        </div>
+
+        <!-- Before / After diagrams (Cross-section) -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">Before</div>
+            <div class="diagram-box diagram-before">
+              <div class="space-y-3">
+                <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">applications</div>
+                <div class="bg-white rounded border p-2 flex items-center justify-between">
+                  <span class="text-xs font-mono">id</span>
+                  <span class="text-xs text-slate-400">BIGSERIAL PK</span>
+                </div>
+                <div class="bg-white rounded border p-2 flex items-center justify-between">
+                  <span class="text-xs font-mono">code</span>
+                  <span class="text-xs text-slate-400">VARCHAR(50) UNIQUE</span>
+                </div>
+                <div class="bg-red-50 rounded border-l-4 border-red-500 p-2 flex items-center justify-between">
+                  <div>
+                    <span class="text-xs font-mono text-red-700">is_active</span>
+                    <div class="text-xs text-red-500 mt-0.5">acl_repository.go:97,115</div>
+                  </div>
+                  <span class="text-xs text-red-600 font-bold">BOOLEAN</span>
+                </div>
+                <div class="bg-amber-50 rounded border-l-4 border-amber-500 p-2 flex items-center justify-between">
+                  <div>
+                    <span class="text-xs font-mono text-amber-700">status</span>
+                    <div class="text-xs text-amber-500 mt-0.5">service / UI layer</div>
+                  </div>
+                  <span class="text-xs text-amber-600 font-bold">VARCHAR(20)</span>
+                </div>
+                <div class="bg-white rounded border p-2 flex items-center justify-between">
+                  <span class="text-xs font-mono">access_model</span>
+                  <span class="text-xs text-slate-400">VARCHAR(10)</span>
+                </div>
+                <div class="text-xs text-red-600 mt-3 font-semibold">Two truth sources, one fact</div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">After</div>
+            <div class="diagram-box diagram-after">
+              <div class="space-y-3">
+                <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">applications</div>
+                <div class="bg-white rounded border p-2 flex items-center justify-between">
+                  <span class="text-xs font-mono">id</span>
+                  <span class="text-xs text-slate-400">BIGSERIAL PK</span>
+                </div>
+                <div class="bg-white rounded border p-2 flex items-center justify-between">
+                  <span class="text-xs font-mono">code</span>
+                  <span class="text-xs text-slate-400">VARCHAR(50) UNIQUE</span>
+                </div>
+                <div class="bg-emerald-50 rounded border-l-4 border-emerald-500 p-2 flex items-center justify-between">
+                  <div>
+                    <span class="text-xs font-mono text-emerald-700">status</span>
+                    <div class="text-xs text-emerald-500 mt-0.5">ACL + UI + service</div>
+                  </div>
+                  <span class="text-xs text-emerald-600 font-bold">VARCHAR(20)</span>
+                </div>
+                <div class="bg-white rounded border p-2 flex items-center justify-between">
+                  <span class="text-xs font-mono">access_model</span>
+                  <span class="text-xs text-slate-400">VARCHAR(10)</span>
+                </div>
+                <div class="text-xs text-emerald-600 mt-3 font-semibold">Single truth source</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">One status column</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">ACL + UI same filter</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">Removes dead boolean</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">No status collision</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 3: Unify Soft-Delete Strategy -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">3. Unify Soft-Delete Strategy</h2>
+          <span class="badge-strong px-2 py-0.5 rounded text-xs font-medium">Strong</span>
+        </div>
+
+        <!-- Files -->
+        <div class="bg-slate-50 rounded-lg p-4 text-sm font-mono space-y-1">
+          <div class="text-slate-500">Files:</div>
+          <div>internal/model/role.go <span class="text-slate-400">(38 lines — ONLY model with DeletedAt)</span></div>
+          <div>internal/repository/acl_repository.go <span class="text-slate-400">(lines 163-164, 180-181)</span></div>
+          <div>internal/model/user_abac_assignment.go <span class="text-slate-400">(status lifecycle only)</span></div>
+          <div>internal/model/abac_delegation.go <span class="text-slate-400">(status lifecycle only)</span></div>
+          <div>internal/model/user.go <span class="text-slate-400">(is_active boolean — 3rd pattern)</span></div>
+        </div>
+
+        <!-- Exact code -->
+        <div class="bg-slate-900 text-slate-100 rounded-lg p-4 text-xs font-mono overflow-x-auto">
+          <div class="text-slate-500">// model/role.go:29 — ONLY table with GORM soft delete</div>
+          <pre class="mt-1"><span class="text-red-400">DeletedAt gorm.DeletedAt</span> `gorm:"index" json:"-"`</pre>
+
+          <div class="text-slate-500 mt-3">// acl_repository.go:163-164 — must filter BOTH conditions</div>
+          <pre class="mt-1">JOIN roles ro ON ro.id = m.role_id
+             AND <span class="text-red-400">ro.deleted_at IS NULL</span>    ← soft-delete filter
+             AND <span class="text-amber-400">ro.status = 'active'</span>     ← status filter</pre>
+
+          <div class="text-slate-500 mt-3">// Compare: model/user_abac_assignment.go — status only</div>
+          <pre class="mt-1">Status AbacAssignmentStatus `gorm:"size:20;not null;default:active"` // no DeletedAt</pre>
+        </div>
+
+        <!-- Problem & Solution -->
+        <div class="space-y-3 text-sm">
+          <div>
+            <span class="font-semibold text-red-700">Problem:</span>
+            Three different "is this row alive?" patterns coexist. (1) <code class="bg-slate-100 px-1 rounded text-xs">roles</code> uses GORM soft-delete via <code class="bg-slate-100 px-1 rounded text-xs">deleted_at</code>, requiring a dual filter in every ACL join. (2) ABAC tables use <code class="bg-slate-100 px-1 rounded text-xs">status</code> lifecycle. (3) <code class="bg-slate-100 px-1 rounded text-xs">users</code> uses <code class="bg-slate-100 px-1 rounded text-xs">is_active</code> boolean. GORM's DeletedAt implementation detail leaks into raw SQL at the ACL seam.
+          </div>
+          <div>
+            <span class="font-semibold text-emerald-700">Solution:</span>
+            Remove <code class="bg-slate-100 px-1 rounded text-xs">deleted_at</code> from roles. Use <code class="bg-slate-100 px-1 rounded text-xs">status</code> lifecycle consistently. Apply same pattern to <code class="bg-slate-100 px-1 rounded text-xs">users.is_active</code>. Add CHECK constraints for status values.
+          </div>
+        </div>
+
+        <!-- Before / After diagrams (Cross-section) -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">Before</div>
+            <div class="diagram-box diagram-before">
+              <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-2">
+                  <div class="text-xs uppercase tracking-wider text-red-600 font-bold">roles</div>
+                  <div class="bg-red-50 border border-red-200 rounded p-2">
+                    <div class="text-xs font-mono">status = 'active'</div>
+                    <div class="text-xs font-mono text-red-600 mt-1">+ deleted_at IS NULL</div>
+                    <div class="text-xs text-red-500 mt-1">2 filters needed</div>
+                  </div>
+                </div>
+                <div class="space-y-2">
+                  <div class="text-xs uppercase tracking-wider text-emerald-600 font-bold">all others</div>
+                  <div class="bg-emerald-50 border border-emerald-200 rounded p-2">
+                    <div class="text-xs font-mono">status = 'active'</div>
+                    <div class="text-xs text-slate-400 mt-1">&nbsp;</div>
+                    <div class="text-xs text-emerald-600 mt-1">1 filter needed</div>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-4 space-y-1">
+                <div class="text-xs uppercase tracking-wider text-slate-500">delete patterns</div>
+                <div class="bg-red-50 rounded border-l-4 border-red-400 p-1.5 text-xs font-mono">roles → GORM DeletedAt</div>
+                <div class="bg-amber-50 rounded border-l-4 border-amber-400 p-1.5 text-xs font-mono">ABAC → status lifecycle</div>
+                <div class="bg-amber-50 rounded border-l-4 border-amber-400 p-1.5 text-xs font-mono">users → is_active boolean</div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">After</div>
+            <div class="diagram-box diagram-after">
+              <div class="space-y-2">
+                <div class="text-xs uppercase tracking-wider text-emerald-600 font-bold">All tables</div>
+                <div class="bg-emerald-50 border border-emerald-200 rounded p-3">
+                  <div class="text-xs font-mono">status = 'active'</div>
+                  <div class="text-xs text-emerald-600 mt-1">1 filter everywhere</div>
+                </div>
+              </div>
+              <div class="mt-4 space-y-1">
+                <div class="text-xs uppercase tracking-wider text-slate-500">uniform delete pattern</div>
+                <div class="bg-emerald-50 rounded border-l-4 border-emerald-400 p-1.5 text-xs font-mono">roles → status = 'inactive'</div>
+                <div class="bg-emerald-50 rounded border-l-4 border-emerald-400 p-1.5 text-xs font-mono">ABAC → status lifecycle</div>
+                <div class="bg-emerald-50 rounded border-l-4 border-emerald-400 p-1.5 text-xs font-mono">users → status (drop is_active)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">One delete pattern</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">Simpler ACL queries</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">No GORM DeletedAt coupling</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">One mental model</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 4: Resolve OU Naming Scar -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">4. Resolve OU Naming Scar</h2>
+          <span class="badge-strong px-2 py-0.5 rounded text-xs font-medium">Strong</span>
+        </div>
+
+        <!-- Files -->
+        <div class="bg-slate-50 rounded-lg p-4 text-sm font-mono space-y-1">
+          <div class="text-slate-500">Files:</div>
+          <div>internal/model/user.go <span class="text-slate-400">(line 17 — Title field)</span></div>
+          <div>internal/model/ou_role_mapping.go <span class="text-slate-400">(line 15 — Section field)</span></div>
+          <div>internal/repository/acl_repository.go <span class="text-slate-400">(lines 151-153, 172)</span></div>
+          <div>pkg/ou/match.go <span class="text-slate-400">(parameter mSection)</span></div>
+          <div>migrations/000016_fix_ou_role_mappings.up.sql</div>
+        </div>
+
+        <!-- Exact code -->
+        <div class="bg-slate-900 text-slate-100 rounded-lg p-4 text-xs font-mono overflow-x-auto">
+          <div class="text-slate-500">// model/user.go:17 — field named "Title" (from JWT claim)</div>
+          <pre class="mt-1">Title *string `gorm:"size:200" json:"title"` // JWT title; also 4th OU matching level</pre>
+
+          <div class="text-slate-500 mt-3">// model/ou_role_mapping.go:15 — field named "Section" (renamed from title)</div>
+          <pre class="mt-1">Section string `gorm:"size:200;not null" json:"section"` // renamed from title in migration 016</pre>
+
+          <div class="text-slate-500 mt-3">// acl_repository.go:151-153 — bridging code to connect different names</div>
+          <pre class="mt-1">title := ""
+if user.Title != nil {
+    title = *user.Title
+}
+// ... binds against m.section:
+// AND (m.section = '*' OR m.section = ?) ← binds `title` variable</pre>
+        </div>
+
+        <!-- Problem & Solution -->
+        <div class="space-y-3 text-sm">
+          <div>
+            <span class="font-semibold text-red-700">Problem:</span>
+            Three names for the same concept: <code class="bg-slate-100 px-1 rounded text-xs">users.title</code> (JWT claim name), <code class="bg-slate-100 px-1 rounded text-xs">ou_role_mappings.section</code> (renamed for "clarity"), <code class="bg-slate-100 px-1 rounded text-xs">mSection</code> (Go parameter). The join between tables uses different column names — a developer must read the model comment to understand the mapping. Bridging code exists solely to translate between names.
+          </div>
+          <div>
+            <span class="font-semibold text-emerald-700">Solution:</span>
+            Rename <code class="bg-slate-100 px-1 rounded text-xs">users.title</code> to <code class="bg-slate-100 px-1 rounded text-xs">users.section</code> to match <code class="bg-slate-100 px-1 rounded text-xs">ou_role_mappings.section</code>. Requires a migration + model update. The bridging code and explanatory comment become unnecessary.
+          </div>
+        </div>
+
+        <!-- Before / After diagrams (Mermaid) -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">Before</div>
+            <div class="diagram-box diagram-before">
+              <pre class="mermaid">
+graph LR
+    U["users.title&lt;br/&gt;(JWT claim)"] -->|"Go bridging code&lt;br/&gt;title := *user.Title"| VAR["title variable"]
+    VAR -->|"SQL bind"| M["ou_role_mappings.section&lt;br/&gt;(renamed from title)"]
+    MATCH["ou.Match(mSection)"] -->|"param"| M
+              </pre>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">After</div>
+            <div class="diagram-box diagram-after">
+              <pre class="mermaid">
+graph LR
+    U["users.section"] -->|"same name"| M["ou_role_mappings.section"]
+    U -->|"SQL bind"| M
+    MATCH["ou.Match(mSection)"] -->|"consistent"| M
+              </pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">Same column name</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">No bridging code</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">Self-documenting SQL</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">Zero confusion</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 5: Add Missing FK on ABAC BU References -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">5. Add Missing FK on ABAC BU References</h2>
+          <span class="badge-worth px-2 py-0.5 rounded text-xs font-medium">Worth Exploring</span>
+        </div>
+
+        <!-- Files -->
+        <div class="bg-slate-50 rounded-lg p-4 text-sm font-mono space-y-1">
+          <div class="text-slate-500">Files:</div>
+          <div>migrations/000048_create_user_abac_assignments.up.sql <span class="text-slate-400">(51 lines)</span></div>
+          <div>migrations/000049_rename_role_delegations_to_abac.up.sql</div>
+          <div>internal/model/user_abac_assignment.go <span class="text-slate-400">(line 31)</span></div>
+          <div>internal/model/abac_delegation.go <span class="text-slate-400">(line 26)</span></div>
+        </div>
+
+        <!-- Exact code -->
+        <div class="bg-slate-900 text-slate-100 rounded-lg p-4 text-xs font-mono overflow-x-auto">
+          <div class="text-slate-500">// 000048_create_user_abac_assignments.up.sql</div>
+          <pre class="mt-1"><span class="text-amber-400">-- bu_id has NO direct FK to abac_bus(id)</span>
+-- Only has composite FK:
+FOREIGN KEY (bu_id, division_id) REFERENCES abac_divisions(bu_id, id)
+<span class="text-red-400">-- Missing: FOREIGN KEY (bu_id) REFERENCES abac_bus(id)</span></pre>
+        </div>
+
+        <!-- Problem & Solution -->
+        <div class="space-y-3 text-sm">
+          <div>
+            <span class="font-semibold text-red-700">Problem:</span>
+            <code class="bg-slate-100 px-1 rounded text-xs">user_abac_assignments.bu_id</code> has no direct foreign key to <code class="bg-slate-100 px-1 rounded text-xs">abac_bus(id)</code>. BU integrity is only validated transitively through the composite FK <code class="bg-slate-100 px-1 rounded text-xs">(bu_id, division_id) → abac_divisions</code>. If a BU exists with zero divisions, an assignment referencing that BU would fail the composite FK for the wrong reason. Same pattern in <code class="bg-slate-100 px-1 rounded text-xs">abac_delegations</code>. BU referential integrity is an implicit contract.
+          </div>
+          <div>
+            <span class="font-semibold text-emerald-700">Solution:</span>
+            Add <code class="bg-slate-100 px-1 rounded text-xs">FOREIGN KEY (bu_id) REFERENCES abac_bus(id)</code> to both tables via new migration.
+          </div>
+        </div>
+
+        <!-- Before / After diagrams (Mermaid) -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">Before</div>
+            <div class="diagram-box diagram-before">
+              <pre class="mermaid">
+graph TD
+    UAA["user_abac_assignments"] -->|"FK(bu_id, division_id)"| AD["abac_divisions"]
+    AD -->|"FK bu_id"| AB["abac_bus"]
+    UAA -.->|"no direct FK"| AB
+    DEL["abac_delegations"] -->|"FK(bu_id, division_id)"| AD
+    DEL -.->|"no direct FK"| AB
+              </pre>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">After</div>
+            <div class="diagram-box diagram-after">
+              <pre class="mermaid">
+graph TD
+    UAA["user_abac_assignments"] -->|"FK(bu_id, division_id)"| AD["abac_divisions"]
+    UAA -->|"FK bu_id"| AB["abac_bus"]
+    AD -->|"FK bu_id"| AB
+    DEL["abac_delegations"] -->|"FK(bu_id, division_id)"| AD
+    DEL -->|"FK bu_id"| AB
+              </pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">Explicit BU integrity</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">Orphan prevention</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">Clearer error messages</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">No app-layer checks</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 6: Unify created_by / updated_by Types -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">6. Unify created_by / updated_by Types</h2>
+          <span class="badge-worth px-2 py-0.5 rounded text-xs font-medium">Worth Exploring</span>
+        </div>
+
+        <!-- Files -->
+        <div class="bg-slate-50 rounded-lg p-4 text-sm font-mono space-y-1">
+          <div class="text-slate-500">Files:</div>
+          <div>internal/model/ou_role_mapping.go <span class="text-slate-400">(line 20 — BIGINT FK)</span></div>
+          <div>internal/model/role.go <span class="text-slate-400">(line 26 — VARCHAR(100))</span></div>
+          <div>internal/model/user_abac_assignment.go <span class="text-slate-400">(lines 44-45 — VARCHAR(200))</span></div>
+          <div>internal/model/abac_delegation.go <span class="text-slate-400">(line 38 — VARCHAR(200) NOT NULL)</span></div>
+        </div>
+
+        <!-- Exact code -->
+        <div class="bg-slate-900 text-slate-100 rounded-lg p-4 text-xs font-mono overflow-x-auto">
+          <div class="text-slate-500">// Three different types for the same concept:</div>
+          <pre class="mt-1"><span class="text-emerald-400">// ou_role_mapping.go:20 — BIGINT FK to users table</span>
+CreatedBy uint `gorm:"not null" json:"created_by"` // FK → users(id)
+
+<span class="text-amber-400">// role.go:26 — VARCHAR(100), stores display name</span>
+UpdatedBy string `gorm:"size:100" json:"updated_by"` // no FK
+
+<span class="text-red-400">// user_abac_assignment.go:44-45 — VARCHAR(200), different size</span>
+CreatedBy *string `gorm:"size:200" json:"created_by,omitempty"`
+UpdatedBy *string `gorm:"size:200" json:"updated_by,omitempty"`
+
+<span class="text-red-400">// abac_delegation.go:38 — VARCHAR(200), NOT NULL, default 'sync-job'</span>
+UpdatedBy string `gorm:"size:200;not null;default:'sync-job'" json:"updated_by"`</pre>
+        </div>
+
+        <!-- Problem & Solution -->
+        <div class="space-y-3 text-sm">
+          <div>
+            <span class="font-semibold text-red-700">Problem:</span>
+            Three types for "who made this change": (a) <code class="bg-slate-100 px-1 rounded text-xs">BIGINT FK → users(id)</code> with referential integrity; (b) <code class="bg-slate-100 px-1 rounded text-xs">VARCHAR(100)</code> name string with no integrity; (c) <code class="bg-slate-100 px-1 rounded text-xs">VARCHAR(200)</code> name string, different max length. Names drift if user renames. Audit trail queries must know which tables store IDs vs names.
+          </div>
+          <div>
+            <span class="font-semibold text-emerald-700">Solution:</span>
+            Standardize to <code class="bg-slate-100 px-1 rounded text-xs">BIGINT FK users(id)</code> across all tables. For ABAC sync rows, use a sentinel system user or nullable FK. Join to users for display name at query time.
+          </div>
+        </div>
+
+        <!-- Before / After diagrams (Mass diagram) -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">Before — mismatched types</div>
+            <div class="diagram-box diagram-before">
+              <div class="space-y-3">
+                <div class="bg-red-50 border border-red-200 rounded p-3">
+                  <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">ou_role_mappings</div>
+                  <div class="text-xs font-mono">created_by <span class="text-emerald-700">BIGINT FK → users(id)</span></div>
+                  <div class="text-xs font-mono mt-0.5">updated_by <span class="text-amber-600">VARCHAR(100) name</span></div>
+                </div>
+                <div class="bg-red-50 border border-red-200 rounded p-3">
+                  <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">roles</div>
+                  <div class="text-xs font-mono">updated_by <span class="text-amber-600">VARCHAR(100) name</span></div>
+                </div>
+                <div class="bg-red-50 border border-red-200 rounded p-3">
+                  <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">user_abac_assignments</div>
+                  <div class="text-xs font-mono">created_by <span class="text-red-600">VARCHAR(200) name</span></div>
+                  <div class="text-xs font-mono mt-0.5">updated_by <span class="text-red-600">VARCHAR(200) name</span></div>
+                </div>
+                <div class="bg-red-50 border border-red-200 rounded p-3">
+                  <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">abac_delegations</div>
+                  <div class="text-xs font-mono">updated_by <span class="text-red-600">VARCHAR(200) DEFAULT 'sync-job'</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">After — consistent FK</div>
+            <div class="diagram-box diagram-after">
+              <div class="space-y-3">
+                <div class="bg-emerald-50 border border-emerald-200 rounded p-3">
+                  <div class="text-xs uppercase tracking-wider text-emerald-600 mb-1 font-bold">All tables</div>
+                  <div class="text-xs font-mono">created_by <span class="text-emerald-700">BIGINT FK → users(id)</span></div>
+                  <div class="text-xs font-mono mt-0.5">updated_by <span class="text-emerald-700">BIGINT FK → users(id)</span></div>
+                </div>
+                <div class="mt-4 text-xs text-slate-500">
+                  <div class="uppercase tracking-wider mb-1">Adapter</div>
+                  <div class="bg-white rounded border p-2 font-mono">
+                    JOIN users actor ON actor.id = t.updated_by
+                  </div>
+                  <div class="text-xs text-emerald-600 mt-1">Display name resolved at query time</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">Consistent type</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">FK integrity</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">Single source: users table</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">Referential audit trail</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 7: Clean Migration Debris -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">7. Clean Migration Debris</h2>
+          <span class="badge-spec px-2 py-0.5 rounded text-xs font-medium">Speculative</span>
+        </div>
+
+        <!-- Files -->
+        <div class="bg-slate-50 rounded-lg p-4 text-sm font-mono space-y-1">
+          <div class="text-slate-500">Files (14 migration files for dropped tables):</div>
+          <div>000011_create_ad_groups → 000023_drop_ad_group_tables</div>
+          <div>000012_create_user_ad_groups → dropped in 023</div>
+          <div>000013_create_token_sessions → 000022_drop_token_sessions</div>
+          <div>000027_create_menus → 000030_drop_menus</div>
+          <div>000028_create_role_menu_mappings → 000029_drop_role_menu_mappings</div>
+          <div>000036_drop_permission_center_migrations</div>
+          <div>000037_drop_permission_center_seeds</div>
+          <div class="text-slate-400 mt-1">+ corresponding .down.sql files</div>
+        </div>
+
+        <!-- Problem & Solution -->
+        <div class="space-y-3 text-sm">
+          <div>
+            <span class="font-semibold text-red-700">Problem:</span>
+            Seven tables created and dropped across 56 migrations — 14 migration files of debris. Features built and removed: AD group management (011-023), token sessions (013-022), application menus (027-030), internal tracking tables (036-037). Harmless at runtime but creates cognitive noise. The real schema trajectory (RBAC → ABAC evolution) is obscured.
+          </div>
+          <div>
+            <span class="font-semibold text-emerald-700">Solution:</span>
+            Squash migrations into a baseline using <code class="bg-slate-100 px-1 rounded text-xs">pg_dump --schema-only</code>. Archive old migrations. One-time cleanup, low risk since all databases are past migration 056.
+          </div>
+        </div>
+
+        <!-- Before / After diagrams (Mermaid timeline) -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">Before</div>
+            <div class="diagram-box diagram-before">
+              <pre class="mermaid">
+graph LR
+    M001["001 applications"] --> M008["008 roles"]
+    M008 --> M048["048 ABAC tables"]
+    M048 --> M056["056 normalize presets"]
+    M011["011 ad_groups"] --> M023["023 DROP"]
+    M013["013 token_sessions"] --> M022["022 DROP"]
+    M027["027 menus"] --> M030["030 DROP"]
+    style M011 fill:#fef2f2
+    style M013 fill:#fef2f2
+    style M027 fill:#fef2f2
+    style M023 fill:#fef2f2
+    style M022 fill:#fef2f2
+    style M030 fill:#fef2f2
+              </pre>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">After</div>
+            <div class="diagram-box diagram-after">
+              <pre class="mermaid">
+graph LR
+    BASE["Baseline migration&lt;br/&gt;(current schema snapshot)"]
+    BASE --> EXT["Future migrations"]
+    style BASE fill:#f0fdf4
+    style EXT fill:#f0fdf4
+              </pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">Cleaner history</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">Faster schema understanding</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">Baseline option</span>
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium">Less noise</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Top Recommendation -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="deep rounded-xl p-6 text-white space-y-5">
+        <h2 class="text-2xl font-bold">Top Recommendation</h2>
+        <p class="text-slate-300 text-sm leading-relaxed">
+          Start with <strong class="text-white">Candidate 1 (Hardcoded Credentials)</strong> — this is a security issue that should be fixed immediately regardless of other refactoring. Then tackle <strong class="text-white">Candidates 2 + 3 (Dual Status + Soft Delete)</strong> together since both involve schema normalization and can run in parallel. <strong class="text-white">Candidate 4 (OU Naming)</strong> is a quick rename with high clarity impact.
+        </p>
+
+        <div class="grid grid-cols-1 gap-2 text-sm">
+          <div class="flex items-center gap-3">
+            <span class="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">1</span>
+            <span class="font-mono">Credentials</span>
+            <span class="text-red-400 text-xs uppercase tracking-wider">security — immediate</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="bg-amber-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">2</span>
+            <span class="font-mono">Dual Status + Soft Delete</span>
+            <span class="text-amber-400 text-xs uppercase tracking-wider">schema normalization</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="bg-emerald-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">3</span>
+            <span class="font-mono">OU Naming</span>
+            <span class="text-emerald-400 text-xs uppercase tracking-wider">quick rename</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="bg-slate-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">4</span>
+            <span class="font-mono">Missing FKs</span>
+            <span class="text-slate-400 text-xs uppercase tracking-wider">referential integrity</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="bg-slate-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">5</span>
+            <span class="font-mono">created_by / updated_by</span>
+            <span class="text-slate-400 text-xs uppercase tracking-wider">consistency</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="bg-slate-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">6</span>
+            <span class="font-mono">Migration Debris</span>
+            <span class="text-slate-500 text-xs uppercase tracking-wider">cosmetic</span>
+          </div>
+        </div>
+      </article>
+
+    </main>
+  </body>
+</html>

@@ -1,0 +1,958 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Database Design Review — Permission Center API</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+    </script>
+    <style>
+      .seam { stroke-dasharray: 4 4; }
+      .leak { stroke: #dc2626; }
+      .deep { background: linear-gradient(135deg, #0f172a, #1e293b); }
+      .badge-strong { background: #059669; color: white; }
+      .badge-worth { background: #d97706; color: white; }
+      .badge-spec { background: #64748b; color: white; }
+      .diagram-box {
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 12px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+        overflow: auto;
+        min-height: 320px;
+      }
+      .diagram-before { background: #fef2f2; }
+      .diagram-after { background: #f0fdf4; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+      <!-- ============================================================ -->
+      <!-- HEADER                                                       -->
+      <!-- ============================================================ -->
+      <header class="space-y-6">
+        <div class="flex items-baseline justify-between">
+          <div>
+            <p class="text-xs uppercase tracking-wider text-slate-500">Database Design Review</p>
+            <h1 class="text-3xl font-bold tracking-tight mt-1">Permission Center API</h1>
+          </div>
+          <time class="text-sm text-slate-400" datetime="2026-05-25">2026-05-25</time>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div class="bg-white rounded-lg border border-slate-200 p-3 text-center">
+            <p class="text-2xl font-bold text-slate-800">19</p>
+            <p class="text-xs text-slate-500 uppercase tracking-wider">Tables</p>
+          </div>
+          <div class="bg-white rounded-lg border border-slate-200 p-3 text-center">
+            <p class="text-2xl font-bold text-slate-800">26</p>
+            <p class="text-xs text-slate-500 uppercase tracking-wider">Foreign Keys</p>
+          </div>
+          <div class="bg-white rounded-lg border border-slate-200 p-3 text-center">
+            <p class="text-2xl font-bold text-slate-800">14</p>
+            <p class="text-xs text-slate-500 uppercase tracking-wider">Partial Indexes</p>
+          </div>
+          <div class="bg-white rounded-lg border border-slate-200 p-3 text-center">
+            <p class="text-2xl font-bold text-amber-600">3</p>
+            <p class="text-xs text-slate-500 uppercase tracking-wider">Delete Patterns</p>
+          </div>
+          <div class="bg-white rounded-lg border border-slate-200 p-3 text-center">
+            <p class="text-2xl font-bold text-slate-800">0</p>
+            <p class="text-xs text-slate-500 uppercase tracking-wider">Enum Types</p>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="flex items-center gap-4 text-xs">
+          <span class="px-2 py-0.5 rounded badge-strong text-xs font-medium">Strong</span>
+          <span class="px-2 py-0.5 rounded badge-worth text-xs font-medium">Worth Exploring</span>
+          <span class="px-2 py-0.5 rounded badge-spec text-xs font-medium">Speculative</span>
+        </div>
+
+        <!-- Stack -->
+        <div class="text-sm text-slate-500 space-y-1">
+          <p><strong>Stack:</strong> Go 1.26 + sqlx + PostgreSQL 16 + golang-migrate</p>
+          <p><strong>Tables:</strong> 19 base + 19 audit log partitions + 4 views</p>
+        </div>
+      </header>
+
+      <!-- ============================================================ -->
+      <!-- CANDIDATE 1: Mixed Soft-Delete Patterns                      -->
+      <!-- ============================================================ -->
+      <article class="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
+        <div class="flex items-start justify-between">
+          <h2 class="text-lg font-bold">Mixed Soft-Delete Patterns</h2>
+          <span class="px-2 py-0.5 rounded badge-strong text-xs font-medium">Strong</span>
+        </div>
+
+        <!-- Files -->
+        <div class="text-xs font-mono text-slate-500 space-y-0.5">
+          <p>migrations/000001_init_schema.up.sql:34 (applications.status)</p>
+          <p>migrations/000001_init_schema.up.sql:79 (ou_master.is_active)</p>
+          <p>migrations/000001_init_schema.up.sql:320 (user_role_assignments.is_active)</p>
+          <p>internal/repository/role_permission_repository.go:59 (hard DELETE)</p>
+        </div>
+
+        <!-- Exact Code -->
+        <div class="bg-slate-900 rounded-lg p-4 text-sm text-slate-100 font-mono overflow-x-auto space-y-4">
+          <div>
+            <p class="text-xs text-slate-400 mb-1">// Pattern A: status TEXT — 7 tables</p>
+            <pre class="text-emerald-300"><code>status TEXT NOT NULL DEFAULT 'ACTIVE'
+       CHECK (status IN ('ACTIVE', 'INACTIVE')),</code></pre>
+            <p class="text-red-400 text-xs mt-1">↑ applications, roles, permissions, org_rules, ou_app_mappings, pc_admins, users</p>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 mb-1">// Pattern B: is_active BOOLEAN — 3 tables</p>
+            <pre class="text-amber-300"><code>is_active BOOLEAN NOT NULL DEFAULT true,</code></pre>
+            <p class="text-red-400 text-xs mt-1">↑ user_role_assignments, ou_master, pc_roles</p>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 mb-1">// Pattern C: hard DELETE — 4 junction tables</p>
+            <pre class="text-red-300"><code>DELETE FROM role_permissions WHERE role_id = $1</code></pre>
+            <p class="text-red-400 text-xs mt-1">↑ role_permissions, org_rule_roles, pc_role_permissions, pc_admin_app_scope</p>
+          </div>
+        </div>
+
+        <!-- Problem / Solution -->
+        <div class="space-y-2">
+          <p><span class="font-bold text-red-600">Problem:</span> Split-brain — same conceptual operation ("deactivate") uses 3 different mechanisms, each requiring different query patterns and filter logic.</p>
+          <p><span class="font-bold text-emerald-700">Solution:</span> Standardize on <code class="text-xs bg-slate-100 px-1 rounded">status TEXT CHECK IN ('ACTIVE','INACTIVE')</code> across all mutable tables; junction tables keep hard DELETE but document as intentional.</p>
+        </div>
+
+        <!-- Before / After Diagrams -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="diagram-box diagram-before">
+            <p class="text-xs uppercase tracking-wider text-red-500 mb-2 font-semibold">Before — 3 patterns</p>
+            <pre class="mermaid">
+flowchart LR
+  subgraph status["status TEXT"]
+    A[applications]
+    B[roles]
+    C[permissions]
+    D[org_rules]
+    E[ou_app_mappings]
+    F[pc_admins]
+    G[users]
+  end
+  subgraph boolean["is_active BOOLEAN"]
+    H[user_role_assignments]
+    I[ou_master]
+    J[pc_roles]
+  end
+  subgraph hard["hard DELETE"]
+    K[role_permissions]
+    L[org_rule_roles]
+    M[pc_role_permissions]
+    N[pc_admin_app_scope]
+  end
+  style status fill:#fef2f2,stroke:#dc2626
+  style boolean fill:#fffbeb,stroke:#d97706
+  style hard fill:#fef2f2,stroke:#dc2626,stroke-dasharray: 4 4
+            </pre>
+          </div>
+          <div class="diagram-box diagram-after">
+            <p class="text-xs uppercase tracking-wider text-emerald-600 mb-2 font-semibold">After — unified status</p>
+            <pre class="mermaid">
+flowchart LR
+  subgraph unified["status TEXT ACTIVE/INACTIVE"]
+    A[applications]
+    B[roles]
+    C[permissions]
+    D[org_rules]
+    E[ou_app_mappings]
+    F[pc_admins]
+    G[users]
+    H[user_role_assignments]
+    I[ou_master]
+    J[pc_roles]
+  end
+  subgraph junction["hard DELETE — documented"]
+    K[role_permissions]
+    L[org_rule_roles]
+    M[pc_role_permissions]
+    N[pc_admin_app_scope]
+  end
+  style unified fill:#f0fdf4,stroke:#059669
+  style junction fill:#f8fafc,stroke:#94a3b8
+            </pre>
+          </div>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">One filter pattern</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Fewer bugs</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Simpler onboarding</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Consistent CHECK</span>
+        </div>
+      </article>
+
+      <!-- ============================================================ -->
+      <!-- CANDIDATE 2: Dual OU Representation in Users                 -->
+      <!-- ============================================================ -->
+      <article class="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
+        <div class="flex items-start justify-between">
+          <h2 class="text-lg font-bold">Dual OU Representation in Users</h2>
+          <span class="px-2 py-0.5 rounded badge-strong text-xs font-medium">Strong</span>
+        </div>
+
+        <!-- Files -->
+        <div class="text-xs font-mono text-slate-500 space-y-0.5">
+          <p>migrations/000001_init_schema.up.sql:116-119 (initial OU text columns)</p>
+          <p>migrations/000008_users_add_ou_master_id.up.sql:5 (FK added)</p>
+          <p>migrations/000009_users_drop_ou_columns.up.sql:77-80 (text cols dropped)</p>
+          <p>migrations/000010_users_readd_ou_and_graph_fields.up.sql:8-11 (text cols re-added)</p>
+          <p>internal/domain/user.go:13-17 (both sets in struct)</p>
+        </div>
+
+        <!-- Exact Code -->
+        <div class="bg-slate-900 rounded-lg p-4 text-sm text-slate-100 font-mono overflow-x-auto space-y-4">
+          <div>
+            <p class="text-xs text-slate-400 mb-1">// user.go — both FK and text columns coexist</p>
+            <pre><code><span class="text-emerald-300">OUMasterID   *int64     `db:"ou_master_id"`</span>
+<span class="text-red-300">Department   *string    `db:"department"`</span>
+<span class="text-red-300">Office       *string    `db:"office"`</span>
+<span class="text-red-300">Division     *string    `db:"division"`</span>
+<span class="text-red-300">Position     *string    `db:"position"`</span></code></pre>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 mb-1">// Migration 008→009→010 — yo-yo pattern</p>
+            <pre><code><span class="text-slate-400">-- 008: ADD ou_master_id FK</span>
+<span class="text-slate-400">-- 009: DROP office, division, department, position</span>
+<span class="text-red-300">-- 010: RE-ADD office, division, department, position</span>
+<span class="text-amber-300">-- Result: both coexist, diverge risk</span></code></pre>
+          </div>
+        </div>
+
+        <!-- Problem / Solution -->
+        <div class="space-y-2">
+          <p><span class="font-bold text-red-600">Problem:</span> Split-brain — two sources of truth for the same organizational data (text columns + FK to ou_master), can diverge when AD sync updates one but not the other.</p>
+          <p><span class="font-bold text-emerald-700">Solution:</span> Pick one source (FK + JOIN for reads, or text columns + drop FK), migrate dependent views, and enforce single-writer.</p>
+        </div>
+
+        <!-- Before / After — Cross-section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="diagram-box diagram-before">
+            <p class="text-xs uppercase tracking-wider text-red-500 mb-2 font-semibold">Before — dual OU</p>
+            <div class="space-y-2 text-xs">
+              <div class="flex items-center gap-2">
+                <div class="border-l-4 border-red-400 pl-2 flex-1 py-1">
+                  <p class="text-slate-400">users table</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="border-l-4 border-amber-400 pl-2 flex-1 py-1 bg-amber-50 rounded-r">
+                  <p><strong>ou_master_id</strong> BIGINT FK → ou_master</p>
+                  <p class="text-slate-400">Source A: normalized reference</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="border-l-4 border-red-500 pl-2 flex-1 py-1 bg-red-50 rounded-r">
+                  <p><strong>office</strong> TEXT — duplicated</p>
+                  <p><strong>division</strong> TEXT — duplicated</p>
+                  <p><strong>department</strong> TEXT — duplicated</p>
+                  <p><strong>position</strong> TEXT — duplicated</p>
+                  <p class="text-slate-400">Source B: denormalized text</p>
+                </div>
+              </div>
+              <div class="mt-3 p-2 bg-red-100 rounded text-red-700">
+                <p>⚠ When ou_master changes, text cols may NOT update → divergence</p>
+              </div>
+            </div>
+          </div>
+          <div class="diagram-box diagram-after">
+            <p class="text-xs uppercase tracking-wider text-emerald-600 mb-2 font-semibold">After — single FK source</p>
+            <div class="space-y-2 text-xs">
+              <div class="flex items-center gap-2">
+                <div class="border-l-4 border-emerald-400 pl-2 flex-1 py-1">
+                  <p class="text-slate-400">users table</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="border-l-4 border-emerald-500 pl-2 flex-1 py-1 bg-emerald-50 rounded-r">
+                  <p><strong>ou_master_id</strong> BIGINT FK → ou_master</p>
+                  <p class="text-slate-400">Single source of truth</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="border-l-4 border-slate-300 pl-2 flex-1 py-1 bg-slate-50 rounded-r line-through opacity-50">
+                  <p>office TEXT — removed</p>
+                  <p>division TEXT — removed</p>
+                  <p>department TEXT — removed</p>
+                  <p>position TEXT — removed</p>
+                </div>
+              </div>
+              <div class="mt-3 p-2 bg-emerald-100 rounded text-emerald-700">
+                <p>✓ All OU reads via JOIN ou_master</p>
+                <p>✓ v_user_ou_path view handles aliasing</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">One source of truth</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">No divergence risk</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Fewer migrations</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Simpler schema</span>
+        </div>
+      </article>
+
+      <!-- ============================================================ -->
+      <!-- CANDIDATE 3: Audit Columns Store Emails Not FKs              -->
+      <!-- ============================================================ -->
+      <article class="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
+        <div class="flex items-start justify-between">
+          <h2 class="text-lg font-bold">Audit Columns Store Emails, Not FKs</h2>
+          <span class="px-2 py-0.5 rounded badge-strong text-xs font-medium">Strong</span>
+        </div>
+
+        <!-- Files -->
+        <div class="text-xs font-mono text-slate-500 space-y-0.5">
+          <p>migrations/000001_init_schema.up.sql:38 (applications.created_by TEXT NOT NULL)</p>
+          <p>internal/domain/permission.go:19 (CreatedBy string)</p>
+          <p>internal/repository/role_permission_repository.go:122 (last updated lookup by email)</p>
+        </div>
+
+        <!-- Exact Code -->
+        <div class="bg-slate-900 rounded-lg p-4 text-sm text-slate-100 font-mono overflow-x-auto space-y-4">
+          <div>
+            <p class="text-xs text-slate-400 mb-1">// Migration — TEXT, not FK</p>
+            <pre><code><span class="text-red-300">created_by TEXT NOT NULL,
+updated_by TEXT NOT NULL</span></code></pre>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 mb-1">// Go struct — email string, no referential integrity</p>
+            <pre><code><span class="text-red-300">CreatedBy string `db:"created_by" json:"created_by"`</span>
+<span class="text-red-300">UpdatedBy string `db:"updated_by" json:"updated_by"`</span></code></pre>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 mb-1">// Repository — resolves actor name by email lookup, fragile</p>
+            <pre><code><span class="text-amber-300">COALESCE((SELECT full_name FROM users
+  WHERE email = rp.created_by LIMIT 1),
+  rp.created_by) AS updated_by_name</span></code></pre>
+            <p class="text-red-400 text-xs mt-1">↑ Breaks if user email changes — full_name becomes stale</p>
+          </div>
+        </div>
+
+        <!-- Problem / Solution -->
+        <div class="space-y-2">
+          <p><span class="font-bold text-red-600">Problem:</span> Referential integrity gap — audit trail references actors by mutable email string, not immutable user_id. If email changes, all historical audit entries become orphan references.</p>
+          <p><span class="font-bold text-emerald-700">Solution:</span> Change to <code class="text-xs bg-slate-100 px-1 rounded">BIGINT FK REFERENCES users(user_id)</code>, add denormalized <code class="text-xs bg-slate-100 px-1 rounded">actor_name TEXT</code> as point-in-time snapshot for display.</p>
+        </div>
+
+        <!-- Before / After — Mass Diagram -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="diagram-box diagram-before">
+            <p class="text-xs uppercase tracking-wider text-red-500 mb-2 font-semibold">Before — TEXT email</p>
+            <div class="space-y-3 text-xs">
+              <div class="border border-slate-300 rounded p-2">
+                <p class="text-xs uppercase tracking-wider text-slate-400 mb-1">applications / roles / permissions / ...</p>
+                <div class="bg-red-50 p-1 rounded text-red-700">created_by: <strong>"john@cj.co.th"</strong> TEXT</div>
+                <div class="bg-red-50 p-1 rounded text-red-700 mt-1">updated_by: <strong>"john@cj.co.th"</strong> TEXT</div>
+                <p class="text-red-500 mt-1">No FK → no integrity → email change = broken trail</p>
+              </div>
+              <div class="border border-slate-300 rounded p-2">
+                <p class="text-xs uppercase tracking-wider text-slate-400 mb-1">users</p>
+                <div class="bg-slate-50 p-1 rounded">user_id: 42 BIGINT PK</div>
+                <div class="bg-amber-50 p-1 rounded mt-1">email: <strong>"john@cj.co.th"</strong> ← mutable!</div>
+              </div>
+            </div>
+          </div>
+          <div class="diagram-box diagram-after">
+            <p class="text-xs uppercase tracking-wider text-emerald-600 mb-2 font-semibold">After — FK + snapshot</p>
+            <div class="space-y-3 text-xs">
+              <div class="border border-emerald-200 rounded p-2">
+                <p class="text-xs uppercase tracking-wider text-slate-400 mb-1">applications / roles / permissions / ...</p>
+                <div class="bg-emerald-50 p-1 rounded text-emerald-700">created_by: <strong>42</strong> BIGINT FK → users</div>
+                <div class="bg-emerald-50 p-1 rounded mt-1 text-emerald-700">updated_by: <strong>42</strong> BIGINT FK → users</div>
+                <div class="bg-slate-50 p-1 rounded mt-1">created_by_name: "John" TEXT (snapshot)</div>
+                <p class="text-emerald-600 mt-1">FK → integrity guaranteed, name frozen at write time</p>
+              </div>
+              <div class="border border-emerald-200 rounded p-2">
+                <p class="text-xs uppercase tracking-wider text-slate-400 mb-1">users</p>
+                <div class="bg-slate-50 p-1 rounded">user_id: 42 BIGINT PK</div>
+                <div class="bg-slate-50 p-1 rounded mt-1">email: can change freely</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Referential integrity</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Survives email change</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Faster JOINs</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Standard pattern</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">No fragile lookups</span>
+        </div>
+      </article>
+
+      <!-- ============================================================ -->
+      <!-- CANDIDATE 4: Audit Log Partitions Have Hard End Date         -->
+      <!-- ============================================================ -->
+      <article class="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
+        <div class="flex items-start justify-between">
+          <h2 class="text-lg font-bold">Audit Log Partitions Have Hard End Date</h2>
+          <span class="px-2 py-0.5 rounded badge-worth text-xs font-medium">Worth Exploring</span>
+        </div>
+
+        <!-- Files -->
+        <div class="text-xs font-mono text-slate-500 space-y-0.5">
+          <p>migrations/000001_init_schema.up.sql:530-547 (18 monthly partitions)</p>
+          <p>migrations/000001_init_schema.up.sql:527 (DEFAULT partition)</p>
+        </div>
+
+        <!-- Exact Code -->
+        <div class="bg-slate-900 rounded-lg p-4 text-sm text-slate-100 font-mono overflow-x-auto space-y-4">
+          <div>
+            <p class="text-xs text-slate-400 mb-1">// Last partition — hard stop at 2027-07</p>
+            <pre><code><span class="text-red-300">CREATE TABLE audit_logs_y2027m06 PARTITION OF audit_logs
+  FOR VALUES FROM ('2027-06-01') TO ('2027-07-01');</span></code></pre>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 mb-1">// After 2027-07-01 — everything lands here (unpartitioned)</p>
+            <pre><code><span class="text-amber-300">CREATE TABLE audit_logs_default PARTITION OF audit_logs DEFAULT;</span></code></pre>
+            <p class="text-red-400 text-xs mt-1">↑ No auto-create, no pg_partman — partitioning silently degrades</p>
+          </div>
+        </div>
+
+        <!-- Problem / Solution -->
+        <div class="space-y-2">
+          <p><span class="font-bold text-red-600">Problem:</span> Lifecycle seam — partitions end at 2027-06 with no auto-create mechanism. After that, all rows funnel into the unpartitioned default partition, silently degrading query performance.</p>
+          <p><span class="font-bold text-emerald-700">Solution:</span> Add pg_partman or a scheduled job to auto-create monthly partitions 3-6 months ahead.</p>
+        </div>
+
+        <!-- Before / After — Mermaid Timeline -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="diagram-box diagram-before">
+            <p class="text-xs uppercase tracking-wider text-red-500 mb-2 font-semibold">Before — manual partitions</p>
+            <pre class="mermaid">
+timeline
+  title Audit Log Partition Lifecycle
+  section 2026
+    Jan-Jun : 6 partitions OK
+    Jul-Dec : 6 partitions OK
+  section 2027
+    Jan-Jun : 6 partitions OK
+    Jul+ : Falls into DEFAULT — unpartitioned!
+  section 2028+
+    All rows : Single bloated table
+    Query perf : Degrades silently
+            </pre>
+          </div>
+          <div class="diagram-box diagram-after">
+            <p class="text-xs uppercase tracking-wider text-emerald-600 mb-2 font-semibold">After — auto-create via pg_partman</p>
+            <pre class="mermaid">
+timeline
+  title Audit Log Partition Lifecycle
+  section 2026
+    Jan-Jun : 6 partitions OK
+    Jul-Dec : 6 partitions OK
+  section 2027
+    Jan-Jun : Auto-created ahead
+    Jul-Dec : Auto-created ahead
+  section 2028+
+    Ongoing : pg_partman creates monthly
+    Old partitions : Detach/archive after 18mo
+    Query perf : Consistent forever
+            </pre>
+          </div>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">No silent degradation</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Automated maintenance</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Consistent perf</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Auto-archive old data</span>
+        </div>
+      </article>
+
+      <!-- ============================================================ -->
+      <!-- CANDIDATE 5: Permissions Dual Status                         -->
+      <!-- ============================================================ -->
+      <article class="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
+        <div class="flex items-start justify-between">
+          <h2 class="text-lg font-bold">Permissions Dual Status (DB + Computed Bool)</h2>
+          <span class="px-2 py-0.5 rounded badge-worth text-xs font-medium">Worth Exploring</span>
+        </div>
+
+        <!-- Files -->
+        <div class="text-xs font-mono text-slate-500 space-y-0.5">
+          <p>internal/domain/permission.go:15 (IsActive bool `db:"-"`)</p>
+          <p>internal/domain/permission.go:16 (Status string `db:"status"`)</p>
+          <p>internal/domain/permission.go:24-27 (SyncIsActive method)</p>
+          <p>internal/domain/permission.go:30-34 (StatusFromActive conversion)</p>
+        </div>
+
+        <!-- Exact Code -->
+        <div class="bg-slate-900 rounded-lg p-4 text-sm text-slate-100 font-mono overflow-x-auto space-y-4">
+          <div>
+            <p class="text-xs text-slate-400 mb-1">// permission.go — two representations of same fact</p>
+            <pre><code><span class="text-emerald-300">IsActive bool   `db:"-" json:"is_active"`     // API layer</span>
+<span class="text-amber-300">Status   string `db:"status" json:"-"`         // DB layer</span></code></pre>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 mb-1">// Conversion — must be called after every DB scan</p>
+            <pre><code><span class="text-red-300">func (p *Permission) SyncIsActive() {
+    p.IsActive = p.Status == "ACTIVE"
+}</span></code></pre>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 mb-1">// Reverse conversion — API bool → DB string</p>
+            <pre><code><span class="text-red-300">func StatusFromActive(isActive bool) string {
+    if isActive { return "ACTIVE" }
+    return "INACTIVE"
+}</span></code></pre>
+            <p class="text-red-400 text-xs mt-1">↑ If someone forgets SyncIsActive(), API returns wrong data</p>
+          </div>
+        </div>
+
+        <!-- Problem / Solution -->
+        <div class="space-y-2">
+          <p><span class="font-bold text-red-600">Problem:</span> Split-brain — two representations of the same fact across API and DB layers. If <code class="text-xs bg-slate-100 px-1 rounded">SyncIsActive()</code> is missed after a scan, the API returns stale/incorrect active state.</p>
+          <p><span class="font-bold text-emerald-700">Solution:</span> Keep <code class="text-xs bg-slate-100 px-1 rounded">status TEXT</code> in DB, compute <code class="text-xs bg-slate-100 px-1 rounded">IsActive</code> only at the handler/response boundary, never store it on the struct.</p>
+        </div>
+
+        <!-- Before / After — Cross-section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="diagram-box diagram-before">
+            <p class="text-xs uppercase tracking-wider text-red-500 mb-2 font-semibold">Before — dual representation</p>
+            <div class="space-y-2 text-xs">
+              <div class="flex items-center gap-2">
+                <div class="border-l-4 border-amber-400 pl-2 flex-1 py-1 bg-amber-50 rounded-r">
+                  <p><strong>Permission struct</strong></p>
+                </div>
+              </div>
+              <div class="ml-4 space-y-1">
+                <div class="border-l-4 border-emerald-400 pl-2 py-1 bg-emerald-50 rounded-r">
+                  <p><strong>IsActive</strong> bool `db:"-"` — computed, not in DB</p>
+                  <p class="text-red-500">Must call SyncIsActive() after scan</p>
+                </div>
+                <div class="border-l-4 border-amber-400 pl-2 py-1 bg-amber-50 rounded-r">
+                  <p><strong>Status</strong> string `db:"status"` — DB source</p>
+                  <p class="text-slate-400">ACTIVE / INACTIVE</p>
+                </div>
+              </div>
+              <div class="mt-2 p-2 bg-red-100 rounded text-red-700">
+                <p>⚠ SyncIsActive() required after every Select/Get</p>
+                <p>⚠ Easy to forget → wrong API response</p>
+              </div>
+            </div>
+          </div>
+          <div class="diagram-box diagram-after">
+            <p class="text-xs uppercase tracking-wider text-emerald-600 mb-2 font-semibold">After — status only, compute at edge</p>
+            <div class="space-y-2 text-xs">
+              <div class="flex items-center gap-2">
+                <div class="border-l-4 border-emerald-400 pl-2 flex-1 py-1 bg-emerald-50 rounded-r">
+                  <p><strong>Permission struct</strong></p>
+                </div>
+              </div>
+              <div class="ml-4 space-y-1">
+                <div class="border-l-4 border-emerald-400 pl-2 py-1 bg-emerald-50 rounded-r">
+                  <p><strong>Status</strong> string `db:"status"` — single source</p>
+                </div>
+              </div>
+              <div class="mt-2 border-l-4 border-slate-400 pl-2 py-1 bg-slate-50 rounded-r">
+                <p><strong>Handler layer</strong></p>
+                <p class="text-slate-400">response.IsActive = perm.Status == "ACTIVE"</p>
+                <p class="text-emerald-600">✓ Computed at boundary, no sync needed</p>
+              </div>
+              <div class="mt-2 p-2 bg-emerald-100 rounded text-emerald-700">
+                <p>✓ No SyncIsActive() to forget</p>
+                <p>✓ Single field on struct</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">No sync method</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Single field</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Less bug surface</span>
+        </div>
+      </article>
+
+      <!-- ============================================================ -->
+      <!-- CANDIDATE 6: Missing Audit Fields on Users & OU Master       -->
+      <!-- ============================================================ -->
+      <article class="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
+        <div class="flex items-start justify-between">
+          <h2 class="text-lg font-bold">Missing Audit Fields on Users &amp; OU Master</h2>
+          <span class="px-2 py-0.5 rounded badge-worth text-xs font-medium">Worth Exploring</span>
+        </div>
+
+        <!-- Files -->
+        <div class="text-xs font-mono text-slate-500 space-y-0.5">
+          <p>migrations/000001_init_schema.up.sql:111-126 (users — no created_by/updated_by)</p>
+          <p>migrations/000001_init_schema.up.sql:73-95 (ou_master — no created_by/updated_by)</p>
+          <p>internal/domain/user.go:8-25 (User struct — no audit fields)</p>
+        </div>
+
+        <!-- Exact Code -->
+        <div class="bg-slate-900 rounded-lg p-4 text-sm text-slate-100 font-mono overflow-x-auto space-y-4">
+          <div>
+            <p class="text-xs text-slate-400 mb-1">// users — no created_by / updated_by</p>
+            <pre><code><span class="text-red-300">created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+-- No created_by, no updated_by!</span></code></pre>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 mb-1">// ou_master — same gap</p>
+            <pre><code><span class="text-red-300">synced_at TIMESTAMPTZ,
+created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+-- No created_by, no updated_by!</span></code></pre>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 mb-1">// Compare with applications — has full audit trail</p>
+            <pre><code><span class="text-emerald-300">created_by TEXT NOT NULL,
+updated_by TEXT NOT NULL</span></code></pre>
+          </div>
+        </div>
+
+        <!-- Problem / Solution -->
+        <div class="space-y-2">
+          <p><span class="font-bold text-red-600">Problem:</span> Seam — audit coverage stops at system-synced tables. No way to trace who triggered a user profile change or OU sync, even though mutations happen via upsert from multiple sources.</p>
+          <p><span class="font-bold text-emerald-700">Solution:</span> Add <code class="text-xs bg-slate-100 px-1 rounded">created_by</code> / <code class="text-xs bg-slate-100 px-1 rounded">updated_by</code> to both tables, populated with sync source identity (e.g. "AD_SYNC", "GRAPH_LOGIN").</p>
+        </div>
+
+        <!-- Before / After — Mass Diagram -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="diagram-box diagram-before">
+            <p class="text-xs uppercase tracking-wider text-red-500 mb-2 font-semibold">Before — gaps in audit trail</p>
+            <div class="space-y-3 text-xs">
+              <div class="border border-emerald-200 rounded p-2 bg-emerald-50">
+                <p class="uppercase tracking-wider text-slate-400 mb-1">applications / roles / permissions</p>
+                <div class="flex justify-between">
+                  <span>created_at</span><span class="text-emerald-600">✓</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>created_by</span><span class="text-emerald-600">✓</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>updated_at</span><span class="text-emerald-600">✓</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>updated_by</span><span class="text-emerald-600">✓</span>
+                </div>
+              </div>
+              <div class="border border-red-200 rounded p-2 bg-red-50">
+                <p class="uppercase tracking-wider text-slate-400 mb-1">users / ou_master</p>
+                <div class="flex justify-between">
+                  <span>created_at</span><span class="text-emerald-600">✓</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>created_by</span><span class="text-red-500">✗</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>updated_at</span><span class="text-emerald-600">✓</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>updated_by</span><span class="text-red-500">✗</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="diagram-box diagram-after">
+            <p class="text-xs uppercase tracking-wider text-emerald-600 mb-2 font-semibold">After — full audit coverage</p>
+            <div class="space-y-3 text-xs">
+              <div class="border border-emerald-200 rounded p-2 bg-emerald-50">
+                <p class="uppercase tracking-wider text-slate-400 mb-1">applications / roles / permissions</p>
+                <div class="flex justify-between">
+                  <span>created_at</span><span class="text-emerald-600">✓</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>created_by</span><span class="text-emerald-600">✓</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>updated_at</span><span class="text-emerald-600">✓</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>updated_by</span><span class="text-emerald-600">✓</span>
+                </div>
+              </div>
+              <div class="border border-emerald-200 rounded p-2 bg-emerald-50">
+                <p class="uppercase tracking-wider text-slate-400 mb-1">users / ou_master</p>
+                <div class="flex justify-between">
+                  <span>created_at</span><span class="text-emerald-600">✓</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>created_by</span><span class="text-emerald-600">✓ NEW</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>updated_at</span><span class="text-emerald-600">✓</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>updated_by</span><span class="text-emerald-600">✓ NEW</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Full audit trail</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Sync accountability</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Consistent pattern</span>
+        </div>
+      </article>
+
+      <!-- ============================================================ -->
+      <!-- CANDIDATE 7: Denormalized app_name in audit_logs             -->
+      <!-- ============================================================ -->
+      <article class="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
+        <div class="flex items-start justify-between">
+          <h2 class="text-lg font-bold">Denormalized app_name Alongside FK in Audit Logs</h2>
+          <span class="px-2 py-0.5 rounded badge-spec text-xs font-medium">Speculative</span>
+        </div>
+
+        <!-- Files -->
+        <div class="text-xs font-mono text-slate-500 space-y-0.5">
+          <p>migrations/000001_init_schema.up.sql:516-517 (app_id FK + app_name TEXT)</p>
+        </div>
+
+        <!-- Exact Code -->
+        <div class="bg-slate-900 rounded-lg p-4 text-sm text-slate-100 font-mono overflow-x-auto space-y-4">
+          <div>
+            <p class="text-xs text-slate-400 mb-1">// audit_logs — both FK and denormalized name</p>
+            <pre><code><span class="text-emerald-300">app_id   BIGINT REFERENCES applications(application_id),</span>
+<span class="text-amber-300">app_name TEXT,</span></code></pre>
+            <p class="text-red-400 text-xs mt-1">↑ If application name changes, historical logs show stale name</p>
+          </div>
+        </div>
+
+        <!-- Problem / Solution -->
+        <div class="space-y-2">
+          <p><span class="font-bold text-red-600">Problem:</span> Split-brain — two representations of application identity. The denormalized <code class="text-xs bg-slate-100 px-1 rounded">app_name</code> is a point-in-time snapshot but not documented as such, creating ambiguity about expected behavior on rename.</p>
+          <p><span class="font-bold text-emerald-700">Solution:</span> Either drop <code class="text-xs bg-slate-100 px-1 rounded">app_name</code> and JOIN at read time, or add a comment documenting it as an intentional point-in-time snapshot for audit immutability.</p>
+        </div>
+
+        <!-- Before / After — Cross-section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="diagram-box diagram-before">
+            <p class="text-xs uppercase tracking-wider text-red-500 mb-2 font-semibold">Before — undocumented dual</p>
+            <div class="space-y-2 text-xs">
+              <div class="flex items-center gap-2">
+                <div class="border-l-4 border-amber-400 pl-2 flex-1 py-1 bg-amber-50 rounded-r">
+                  <p><strong>audit_logs</strong></p>
+                </div>
+              </div>
+              <div class="ml-4 space-y-1">
+                <div class="border-l-4 border-emerald-400 pl-2 py-1 bg-emerald-50 rounded-r">
+                  <p>app_id BIGINT FK → applications</p>
+                </div>
+                <div class="border-l-4 border-amber-400 pl-2 py-1 bg-amber-50 rounded-r">
+                  <p>app_name TEXT — denormalized</p>
+                  <p class="text-red-500">Intent unclear: snapshot or live?</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="diagram-box diagram-after">
+            <p class="text-xs uppercase tracking-wider text-emerald-600 mb-2 font-semibold">After — documented snapshot</p>
+            <div class="space-y-2 text-xs">
+              <div class="flex items-center gap-2">
+                <div class="border-l-4 border-emerald-400 pl-2 flex-1 py-1 bg-emerald-50 rounded-r">
+                  <p><strong>audit_logs</strong></p>
+                </div>
+              </div>
+              <div class="ml-4 space-y-1">
+                <div class="border-l-4 border-emerald-400 pl-2 py-1 bg-emerald-50 rounded-r">
+                  <p>app_id BIGINT FK → applications</p>
+                </div>
+                <div class="border-l-4 border-slate-400 pl-2 py-1 bg-slate-50 rounded-r">
+                  <p>app_name TEXT — <em>point-in-time snapshot</em></p>
+                  <p class="text-emerald-600">Comment: frozen at event time for immutability</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Clear intent</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Audit immutability</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">No ambiguity</span>
+        </div>
+      </article>
+
+      <!-- ============================================================ -->
+      <!-- CANDIDATE 8: Hard Delete on Junction Tables                  -->
+      <!-- ============================================================ -->
+      <article class="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
+        <div class="flex items-start justify-between">
+          <h2 class="text-lg font-bold">Hard Delete on Junction Tables vs Soft Delete Elsewhere</h2>
+          <span class="px-2 py-0.5 rounded badge-spec text-xs font-medium">Speculative</span>
+        </div>
+
+        <!-- Files -->
+        <div class="text-xs font-mono text-slate-500 space-y-0.5">
+          <p>internal/repository/role_permission_repository.go:59 (DELETE FROM role_permissions)</p>
+          <p>migrations/000001_init_schema.up.sql:200-207 (role_permissions — no status column)</p>
+          <p>migrations/000001_init_schema.up.sql:253-260 (org_rule_roles — no status column)</p>
+        </div>
+
+        <!-- Exact Code -->
+        <div class="bg-slate-900 rounded-lg p-4 text-sm text-slate-100 font-mono overflow-x-auto space-y-4">
+          <div>
+            <p class="text-xs text-slate-400 mb-1">// role_permission_repository.go — hard DELETE</p>
+            <pre><code><span class="text-red-300">DELETE FROM role_permissions WHERE role_id = $1</span></code></pre>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 mb-1">// Migration — junction tables have no status/is_active</p>
+            <pre><code><span class="text-slate-400">CREATE TABLE role_permissions (
+  role_id       BIGINT NOT NULL REFERENCES roles ON DELETE CASCADE,
+  permission_id BIGINT NOT NULL REFERENCES permissions ON DELETE CASCADE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_by    TEXT NOT NULL,
+  PRIMARY KEY (role_id, permission_id)
+);</span></code></pre>
+            <p class="text-amber-400 text-xs mt-1">↑ No soft-delete column — deleted rows are gone permanently</p>
+          </div>
+        </div>
+
+        <!-- Problem / Solution -->
+        <div class="space-y-2">
+          <p><span class="font-bold text-red-600">Problem:</span> Lifecycle seam — parent entities use soft delete but junction rows are permanently destroyed. Accidental bulk un-assign cannot be undone without restoring from backup.</p>
+          <p><span class="font-bold text-emerald-700">Solution:</span> Either soft-delete junction rows (add <code class="text-xs bg-slate-100 px-1 rounded">status</code> column) or document as acceptable since junction recreation is idempotent via BulkSet.</p>
+        </div>
+
+        <!-- Before / After — Mermaid Flowchart -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="diagram-box diagram-before">
+            <p class="text-xs uppercase tracking-wider text-red-500 mb-2 font-semibold">Before — mixed delete strategies</p>
+            <pre class="mermaid">
+flowchart TD
+  subgraph parent["Parent entities — soft delete"]
+    A[roles] -->|status = INACTIVE| B[Soft delete ✓]
+    C[permissions] -->|status = INACTIVE| D[Soft delete ✓]
+  end
+  subgraph junction["Junction tables — hard delete"]
+    E[role_permissions] -->|DELETE FROM| F[Permanent loss ✗]
+    G[org_rule_roles] -->|DELETE FROM| H[Permanent loss ✗]
+  end
+  A --> E
+  C --> E
+  style parent fill:#f0fdf4,stroke:#059669
+  style junction fill:#fef2f2,stroke:#dc2626
+            </pre>
+          </div>
+          <div class="diagram-box diagram-after">
+            <p class="text-xs uppercase tracking-wider text-emerald-600 mb-2 font-semibold">After — documented strategy</p>
+            <pre class="mermaid">
+flowchart TD
+  subgraph parent["Parent entities — soft delete"]
+    A[roles] -->|status = INACTIVE| B[Recoverable ✓]
+    C[permissions] -->|status = INACTIVE| D[Recoverable ✓]
+  end
+  subgraph junction["Junction tables — hard delete OK"]
+    E[role_permissions] -->|BulkSet = idempotent| F[Recreatable ✓]
+    G[org_rule_roles] -->|Cascade replacable| H[Recreatable ✓]
+  end
+  I[Docs: junction hard delete is acceptable — BulkSet is idempotent]
+  A --> E
+  C --> E
+  style parent fill:#f0fdf4,stroke:#059669
+  style junction fill:#f0fdf4,stroke:#059669
+  style I fill:#eff6ff,stroke:#3b82f6
+            </pre>
+          </div>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Documented decision</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">No hidden risk</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-medium">Team alignment</span>
+        </div>
+      </article>
+
+      <!-- ============================================================ -->
+      <!-- TOP RECOMMENDATION                                           -->
+      <!-- ============================================================ -->
+      <section class="deep rounded-xl p-6 space-y-4 text-white">
+        <h2 class="text-xl font-bold">Top Recommendation</h2>
+        <p class="text-sm text-slate-300">Priority-ordered action list — from data integrity to cosmetic.</p>
+
+        <ol class="space-y-3">
+          <li class="flex items-start gap-3">
+            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-bold">1</span>
+            <div>
+              <p class="font-semibold">Unify soft-delete pattern</p>
+              <p class="text-sm text-slate-400">Standardize on <code class="text-xs">status TEXT</code> across all mutable tables. Add migration to convert <code class="text-xs">is_active BOOLEAN</code> columns. Document junction hard-delete as intentional.</p>
+              <span class="px-1.5 py-0.5 rounded badge-strong text-xs mt-1 inline-block">Strong</span>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-bold">2</span>
+            <div>
+              <p class="font-semibold">Resolve dual OU representation</p>
+              <p class="text-sm text-slate-400">Pick one source of truth for user OU data. Remove the yo-yo migration pattern (008→009→010). Update views to single source.</p>
+              <span class="px-1.5 py-0.5 rounded badge-strong text-xs mt-1 inline-block">Strong</span>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-bold">3</span>
+            <div>
+              <p class="font-semibold">Convert audit columns to FKs</p>
+              <p class="text-sm text-slate-400">Change <code class="text-xs">created_by/updated_by</code> from TEXT email to BIGINT FK with denormalized name snapshot. Backfill from users table.</p>
+              <span class="px-1.5 py-0.5 rounded badge-strong text-xs mt-1 inline-block">Strong</span>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-amber-500 text-white text-xs flex items-center justify-center font-bold">4</span>
+            <div>
+              <p class="font-semibold">Add pg_partman for audit logs</p>
+              <p class="text-sm text-slate-400">Auto-create monthly partitions ahead of time. Prevents silent degradation into default partition after 2027-06.</p>
+              <span class="px-1.5 py-0.5 rounded badge-worth text-xs mt-1 inline-block">Worth Exploring</span>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-amber-500 text-white text-xs flex items-center justify-center font-bold">5</span>
+            <div>
+              <p class="font-semibold">Simplify Permission dual status</p>
+              <p class="text-sm text-slate-400">Remove <code class="text-xs">SyncIsActive()</code> pattern. Compute IsActive only at handler boundary.</p>
+              <span class="px-1.5 py-0.5 rounded badge-worth text-xs mt-1 inline-block">Worth Exploring</span>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-amber-500 text-white text-xs flex items-center justify-center font-bold">6</span>
+            <div>
+              <p class="font-semibold">Add audit fields to users &amp; ou_master</p>
+              <p class="text-sm text-slate-400">Add <code class="text-xs">created_by/updated_by</code> with sync source identity ("AD_SYNC", "GRAPH_LOGIN").</p>
+              <span class="px-1.5 py-0.5 rounded badge-worth text-xs mt-1 inline-block">Worth Exploring</span>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-500 text-white text-xs flex items-center justify-center font-bold">7</span>
+            <div>
+              <p class="font-semibold">Document app_name as intentional snapshot</p>
+              <p class="text-sm text-slate-400">Add SQL comment on audit_logs.app_name documenting point-in-time snapshot semantics.</p>
+              <span class="px-1.5 py-0.5 rounded badge-spec text-xs mt-1 inline-block">Speculative</span>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-500 text-white text-xs flex items-center justify-center font-bold">8</span>
+            <div>
+              <p class="font-semibold">Document junction hard-delete policy</p>
+              <p class="text-sm text-slate-400">Add ADR documenting that junction tables use hard DELETE because BulkSet is idempotent.</p>
+              <span class="px-1.5 py-0.5 rounded badge-spec text-xs mt-1 inline-block">Speculative</span>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+    </main>
+  </body>
+</html>
