@@ -1,0 +1,891 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Backend Architecture Review — permission-center-api04</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+    </script>
+    <style>
+      .seam { stroke-dasharray: 4 4; }
+      .leak { stroke: #dc2626; }
+      .deep { background: linear-gradient(135deg, #0f172a, #1e293b); }
+      .badge-strong { background: #059669; color: white; }
+      .badge-worth { background: #d97706; color: white; }
+      .badge-spec { background: #64748b; color: white; }
+      .layer-presentation { border-left-color: #6366f1; }
+      .layer-application { border-left-color: #8b5cf6; }
+      .layer-domain { border-left-color: #0ea5e9; }
+      .layer-infrastructure { border-left-color: #f59e0b; }
+      .diagram-box { min-height: 320px; }
+      pre { margin: 0; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+      <!-- ============================================================ -->
+      <!-- HEADER                                                       -->
+      <!-- ============================================================ -->
+      <header class="space-y-4">
+        <div class="flex items-end justify-between">
+          <div>
+            <h1 class="text-3xl font-bold tracking-tight">permission-center-api04</h1>
+            <p class="text-slate-500 mt-1">Backend Architecture Review</p>
+          </div>
+          <div class="text-right text-sm text-slate-500">
+            <div>2026-05-25</div>
+            <div>142 Go files · ~35K LOC</div>
+          </div>
+        </div>
+
+        <!-- Stack summary -->
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="bg-slate-100 rounded px-2 py-1">Go 1.24</span>
+          <span class="bg-slate-100 rounded px-2 py-1">Gin v1.9.1</span>
+          <span class="bg-slate-100 rounded px-2 py-1">GORM v1.25.10</span>
+          <span class="bg-slate-100 rounded px-2 py-1">PostgreSQL</span>
+          <span class="bg-slate-100 rounded px-2 py-1">Azure AD JWKS</span>
+          <span class="bg-slate-100 rounded px-2 py-1">Cloud Run</span>
+          <span class="bg-slate-100 rounded px-2 py-1">GitLab CI</span>
+        </div>
+
+        <!-- Layer legend -->
+        <div class="grid grid-cols-4 gap-3 text-xs">
+          <div class="border-l-4 layer-presentation pl-2 py-1">
+            <span class="font-semibold text-indigo-600">Presentation</span>
+            <span class="text-slate-400">handler/ middleware/</span>
+          </div>
+          <div class="border-l-4 layer-application pl-2 py-1">
+            <span class="font-semibold text-violet-600">Application</span>
+            <span class="text-slate-400">service/</span>
+          </div>
+          <div class="border-l-4 layer-domain pl-2 py-1">
+            <span class="font-semibold text-sky-600">Domain</span>
+            <span class="text-slate-400">model/ pkg/errs/</span>
+          </div>
+          <div class="border-l-4 layer-infrastructure pl-2 py-1">
+            <span class="font-semibold text-amber-600">Infrastructure</span>
+            <span class="text-slate-400">repository/ sync/</span>
+          </div>
+        </div>
+
+        <!-- Layer size bar -->
+        <div class="rounded overflow-hidden h-3 flex text-xs">
+          <div class="bg-indigo-400" style="width:28%" title="handler 9.9K lines"></div>
+          <div class="bg-violet-400" style="width:40%" title="service 14K lines"></div>
+          <div class="bg-sky-400" style="width:1.5%" title="model 510 lines"></div>
+          <div class="bg-amber-400" style="width:14.5%" title="repository 5K lines"></div>
+          <div class="bg-slate-300" style="width:16%" title="dto/middleware/job/sync/etc"></div>
+        </div>
+        <div class="flex justify-between text-xs text-slate-400">
+          <span>handler 9.9K (28%)</span>
+          <span>service 14K (40%)</span>
+          <span>model 510 (1.5%)</span>
+          <span>repo 5K (14.5%)</span>
+          <span>other 5.5K (16%)</span>
+        </div>
+      </header>
+
+      <!-- ============================================================ -->
+      <!-- PRESENTATION LAYER                                           -->
+      <!-- ============================================================ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-semibold flex items-center gap-2">
+          <span class="w-3 h-3 rounded-sm bg-indigo-500"></span>
+          Presentation Layer
+          <span class="text-sm font-normal text-slate-400">handler/ middleware/</span>
+        </h2>
+
+        <!-- Health scorecard -->
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="bg-red-100 text-red-700 rounded-full px-2 py-0.5">4 anti-patterns</span>
+          <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">5 healthy patterns</span>
+          <span class="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">3 metric violations</span>
+        </div>
+
+        <!-- Anti-patterns -->
+        <div class="bg-white rounded-lg border p-4 space-y-3">
+          <h3 class="text-sm font-semibold text-red-700 uppercase tracking-wider">Anti-patterns Found</h3>
+
+          <div class="text-sm space-y-3">
+            <div class="border-l-2 border-red-300 pl-3">
+              <div class="font-mono text-xs text-slate-500">application_handler.go:214-222 · ou_handler.go:281-291 · abac_assignment_handler.go:49-52</div>
+              <p class="text-slate-700">Authorization logic (<code class="bg-slate-100 px-1 rounded text-xs">isSuperAdmin()</code>, <code class="bg-slate-100 px-1 rounded text-xs">isAdmin()</code>, <code class="bg-slate-100 px-1 rounded text-xs">hasPermissionCode()</code>) scattered across handlers instead of centralized middleware</p>
+              <pre class="bg-slate-50 rounded p-2 mt-1 text-xs overflow-x-auto"><code>// application_handler.go:214
+func isSuperAdmin(c *gin.Context) bool {
+    v, exists := c.Get(middleware.ContextKeyIsSuperAdmin)
+    if !exists { return true }
+    isSA, ok := v.(bool)
+    return ok && isSA
+}</code></pre>
+            </div>
+
+            <div class="border-l-2 border-red-300 pl-3">
+              <div class="font-mono text-xs text-slate-500">application_handler.go:149-155</div>
+              <p class="text-slate-700">Business rule in handler: <code class="bg-slate-100 px-1 rounded text-xs">access_model</code> immutability check should live in service layer</p>
+              <pre class="bg-slate-50 rounded p-2 mt-1 text-xs overflow-x-auto"><code>if req.AccessModel != nil {
+    c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+        Message: "access_model is immutable and cannot be changed after creation",
+        Code:    "ACCESS_MODEL_IMMUTABLE",
+    })
+    return
+}</code></pre>
+            </div>
+
+            <div class="border-l-2 border-red-300 pl-3">
+              <div class="font-mono text-xs text-slate-500">role_handler.go:278-302 (repeated in 10+ handler files)</div>
+              <p class="text-slate-700">Repeated actor context extraction — <code class="bg-slate-100 px-1 rounded text-xs">actorIDFromContext()</code> and <code class="bg-slate-100 px-1 rounded text-xs">actorNameFromContext()</code> duplicated in every handler file instead of middleware injection</p>
+            </div>
+
+            <div class="border-l-2 border-red-300 pl-3">
+              <div class="font-mono text-xs text-slate-500">application_handler.go:191-206 vs role_handler.go:229-254</div>
+              <p class="text-slate-700"><code class="bg-slate-100 px-1 rounded text-xs">handleError()</code> methods differ between handlers — role_handler has <code class="bg-slate-100 px-1 rounded text-xs">ErrConflictBoundUsers</code> and <code class="bg-slate-100 px-1 rounded text-xs">ErrConflictDuplicateCode</code> branches that application_handler lacks; inconsistent error-to-HTTP mapping</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Healthy patterns -->
+        <div class="bg-white rounded-lg border p-4 space-y-3">
+          <h3 class="text-sm font-semibold text-emerald-700 uppercase tracking-wider">Healthy Patterns Observed</h3>
+          <div class="text-sm space-y-2">
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-500 mt-0.5">&#10003;</span>
+              <div><strong>Thin delegation</strong> — handlers parse request → call service → map response → return. No business logic in handler bodies (except the exceptions noted above).</div>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-500 mt-0.5">&#10003;</span>
+              <div><strong>DTO separation</strong> — request/response DTOs in <code class="bg-slate-100 px-1 rounded text-xs">internal/dto/</code> are distinct types from domain entities in <code class="bg-slate-100 px-1 rounded text-xs">internal/model/</code>. Handlers never return raw model structs.</div>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-500 mt-0.5">&#10003;</span>
+              <div><strong>No skip-layer</strong> — handlers import services only, never repositories or database drivers.</div>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-500 mt-0.5">&#10003;</span>
+              <div><strong>Consistent response envelope</strong> — all errors use <code class="bg-slate-100 px-1 rounded text-xs">dto.ErrorResponse{Message, Code}</code>.</div>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-500 mt-0.5">&#10003;</span>
+              <div><strong>Interface-based handlers</strong> — handlers depend on service interfaces, not concrete implementations.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metric violations -->
+        <div class="bg-white rounded-lg border p-4 space-y-2">
+          <h3 class="text-sm font-semibold text-amber-700 uppercase tracking-wider">Metric Violations</h3>
+          <table class="text-sm w-full">
+            <thead><tr class="text-xs text-slate-400"><th class="text-left">File</th><th class="text-right">Actual</th><th class="text-right">Threshold</th></tr></thead>
+            <tbody>
+              <tr class="border-t"><td class="font-mono text-xs">ou_handler.go</td><td class="text-right text-red-600 font-semibold">317 lines</td><td class="text-right text-slate-400">200</td></tr>
+              <tr class="border-t"><td class="font-mono text-xs">application_handler.go</td><td class="text-right text-amber-600 font-semibold">235 lines</td><td class="text-right text-slate-400">200</td></tr>
+              <tr class="border-t"><td class="font-mono text-xs">auth_middleware.go</td><td class="text-right text-amber-600 font-semibold">307 lines</td><td class="text-right text-slate-400">30 (middleware logic)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- APPLICATION LAYER                                            -->
+      <!-- ============================================================ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-semibold flex items-center gap-2">
+          <span class="w-3 h-3 rounded-sm bg-violet-500"></span>
+          Application Layer
+          <span class="text-sm font-normal text-slate-400">service/</span>
+        </h2>
+
+        <!-- Health scorecard -->
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="bg-red-100 text-red-700 rounded-full px-2 py-0.5">3 anti-patterns</span>
+          <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">6 healthy patterns</span>
+          <span class="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">3 metric violations</span>
+        </div>
+
+        <!-- Anti-patterns -->
+        <div class="bg-white rounded-lg border p-4 space-y-3">
+          <h3 class="text-sm font-semibold text-red-700 uppercase tracking-wider">Anti-patterns Found</h3>
+
+          <div class="text-sm space-y-3">
+            <div class="border-l-2 border-red-300 pl-3">
+              <div class="font-mono text-xs text-slate-500">abac_assignment_service.go:35-64 — constructor takes 7 repository args</div>
+              <p class="text-slate-700">Service with >5 dependencies — <code class="bg-slate-100 px-1 rounded text-xs">abacAssignmentService</code> depends on 7 repositories, indicating too many concerns in a single service</p>
+              <pre class="bg-slate-50 rounded p-2 mt-1 text-xs overflow-x-auto"><code>type abacAssignmentService struct {
+    appRepo        repository.ApplicationRepository
+    assignmentRepo repository.UserAbacAssignmentRepository
+    abacRoleRepo   repository.AbacRoleRepository
+    buRepo         repository.AbacBURepository
+    divisionRepo   repository.AbacDivisionRepository
+    userRepo       repository.UserRepository
+    auditRepo      repository.AuditRepository   // 7 repos
+}</code></pre>
+            </div>
+
+            <div class="border-l-2 border-red-300 pl-3">
+              <div class="font-mono text-xs text-slate-500">role_service.go:183-187 (repeated 20+ times across services)</div>
+              <p class="text-slate-700">Audit logging boilerplate repeated in every mutation — identical <code class="bg-slate-100 px-1 rounded text-xs">if auditErr := s.auditRepo.LogApp(...)</code> pattern scattered across all service files</p>
+              <pre class="bg-slate-50 rounded p-2 mt-1 text-xs overflow-x-auto"><code>if auditErr := s.auditRepo.LogApp(ctx, app.ID, "role.create", "role",
+    uintPtr(role.ID), req.ActorID, map[string]any{"after": role},
+); auditErr != nil {
+    log.Printf("WARN role.create audit log failed: %v", auditErr)
+}</code></pre>
+            </div>
+
+            <div class="border-l-2 border-red-300 pl-3">
+              <div class="font-mono text-xs text-slate-500">ou_service.go:269-273, abac_assignment_service.go:157-179</div>
+              <p class="text-slate-700">No service-level transaction control — services can't coordinate transactions across multiple repositories. Each repo manages its own tx, creating a consistency gap for multi-step mutations.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Healthy patterns -->
+        <div class="bg-white rounded-lg border p-4 space-y-3">
+          <h3 class="text-sm font-semibold text-emerald-700 uppercase tracking-wider">Healthy Patterns Observed</h3>
+          <div class="text-sm space-y-2">
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-500 mt-0.5">&#10003;</span>
+              <div><strong>No HTTP types</strong> — services never import gin.Context, http status codes, or HTTP-specific types.</div>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-500 mt-0.5">&#10003;</span>
+              <div><strong>Interface-first</strong> — every service is defined as an interface before implementation.</div>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-500 mt-0.5">&#10003;</span>
+              <div><strong>Error wrapping</strong> — domain errors wrapped with <code class="bg-slate-100 px-1 rounded text-xs">fmt.Errorf("context: %w", errs.ErrX)</code>, not replaced.</div>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-500 mt-0.5">&#10003;</span>
+              <div><strong>Use-case methods</strong> — each service method maps to one use case (Create, Update, Delete, List).</div>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-500 mt-0.5">&#10003;</span>
+              <div><strong>Repo interfaces</strong> — services depend on repository interfaces, never concrete implementations or GORM.</div>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-500 mt-0.5">&#10003;</span>
+              <div><strong>DTO mappers</strong> — entity-to-response mapping via <code class="bg-slate-100 px-1 rounded text-xs">toRoleResponse()</code>, <code class="bg-slate-100 px-1 rounded text-xs">toPermissionResponse()</code> helpers.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metric violations -->
+        <div class="bg-white rounded-lg border p-4 space-y-2">
+          <h3 class="text-sm font-semibold text-amber-700 uppercase tracking-wider">Metric Violations</h3>
+          <table class="text-sm w-full">
+            <thead><tr class="text-xs text-slate-400"><th class="text-left">File</th><th class="text-right">Actual</th><th class="text-right">Threshold</th></tr></thead>
+            <tbody>
+              <tr class="border-t"><td class="font-mono text-xs">ou_service.go</td><td class="text-right text-red-600 font-semibold">509 lines</td><td class="text-right text-slate-400">300</td></tr>
+              <tr class="border-t"><td class="font-mono text-xs">abac_assignment_service.go</td><td class="text-right text-red-600 font-semibold">416 lines</td><td class="text-right text-slate-400">300</td></tr>
+              <tr class="border-t"><td class="font-mono text-xs">abac_assignment_service.go (constructor)</td><td class="text-right text-red-600 font-semibold">7 deps</td><td class="text-right text-slate-400">5</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- DOMAIN LAYER                                                 -->
+      <!-- ============================================================ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-semibold flex items-center gap-2">
+          <span class="w-3 h-3 rounded-sm bg-sky-500"></span>
+          Domain Layer
+          <span class="text-sm font-normal text-slate-400">model/ pkg/errs/</span>
+        </h2>
+
+        <!-- Health scorecard -->
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="bg-red-100 text-red-700 rounded-full px-2 py-0.5">3 anti-patterns</span>
+          <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">3 healthy patterns</span>
+          <span class="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">1 metric violation</span>
+        </div>
+
+        <!-- Anti-patterns -->
+        <div class="bg-white rounded-lg border p-4 space-y-3">
+          <h3 class="text-sm font-semibold text-red-700 uppercase tracking-wider">Anti-patterns Found</h3>
+
+          <div class="text-sm space-y-3">
+            <div class="border-l-2 border-red-300 pl-3">
+              <div class="font-mono text-xs text-slate-500">model/role.go, model/application.go, model/user.go (all 18 model files)</div>
+              <p class="text-slate-700"><strong>Anemic domain model</strong> — all entities are pure data containers with no behavior, no validation, no invariant enforcement. Only method is <code class="bg-slate-100 px-1 rounded text-xs">TableName()</code>.</p>
+              <pre class="bg-slate-50 rounded p-2 mt-1 text-xs overflow-x-auto"><code>// model/role.go — the ENTIRE file (38 lines)
+type Role struct {
+    ID            uint           `gorm:"primaryKey"`
+    ApplicationID uint           `gorm:"not null;index"`
+    Code          string         `gorm:"size:100;not null"`
+    Name          string         `gorm:"size:200;not null"`
+    // ... all public fields, no validation, no methods
+}
+func (Role) TableName() string { return "roles" }</code></pre>
+            </div>
+
+            <div class="border-l-2 border-red-300 pl-3">
+              <div class="font-mono text-xs text-slate-500">model/role.go:8-15 — public mutable fields</div>
+              <p class="text-slate-700">Entity with public fields that can be set to invalid values — <code class="bg-slate-100 px-1 rounded text-xs">Code: ""</code>, <code class="bg-slate-100 px-1 rounded text-xs">Status: "garbage"</code>, <code class="bg-slate-100 px-1 rounded text-xs">ApplicationID: 0</code> all pass compilation</p>
+            </div>
+
+            <div class="border-l-2 border-red-300 pl-3">
+              <div class="font-mono text-xs text-slate-500">pkg/errs/errors.go — no domain-specific validation errors</div>
+              <p class="text-slate-700">Error hierarchy lacks domain-specific validation errors — <code class="bg-slate-100 px-1 rounded text-xs">ErrInvalidInput</code> is a catch-all with no typed sub-errors for field-level validation failures</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Healthy patterns -->
+        <div class="bg-white rounded-lg border p-4 space-y-3">
+          <h3 class="text-sm font-semibold text-emerald-700 uppercase tracking-wider">Healthy Patterns Observed</h3>
+          <div class="text-sm space-y-2">
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-500 mt-0.5">&#10003;</span>
+              <div><strong>Pure data</strong> — no side effects, no I/O, no methods that modify state beyond field assignment.</div>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-500 mt-0.5">&#10003;</span>
+              <div><strong>Error hierarchy</strong> — typed errors with <code class="bg-slate-100 px-1 rounded text-xs">errors.Is()</code> compatibility: <code class="bg-slate-100 px-1 rounded text-xs">ErrUserNotFound</code> wraps <code class="bg-slate-100 px-1 rounded text-xs">ErrNotFound</code>.</div>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-500 mt-0.5">&#10003;</span>
+              <div><strong>No outer imports</strong> — model package imports only stdlib + GORM tags, never reaches into service/handler/repo layers.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metric violations -->
+        <div class="bg-white rounded-lg border p-4 space-y-2">
+          <h3 class="text-sm font-semibold text-amber-700 uppercase tracking-wider">Metric Violations</h3>
+          <table class="text-sm w-full">
+            <thead><tr class="text-xs text-slate-400"><th class="text-left">File</th><th class="text-right">Actual</th><th class="text-right">Threshold</th></tr></thead>
+            <tbody>
+              <tr class="border-t"><td class="font-mono text-xs">role_repository.go (interface)</td><td class="text-right text-red-600 font-semibold">12 methods</td><td class="text-right text-slate-400">10</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- INFRASTRUCTURE LAYER                                         -->
+      <!-- ============================================================ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-semibold flex items-center gap-2">
+          <span class="w-3 h-3 rounded-sm bg-amber-500"></span>
+          Infrastructure Layer
+          <span class="text-sm font-normal text-slate-400">repository/ sync/ migrationrunner/</span>
+        </h2>
+
+        <!-- Health scorecard -->
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="bg-red-100 text-red-700 rounded-full px-2 py-0.5">3 anti-patterns</span>
+          <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">5 healthy patterns</span>
+          <span class="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">3 metric violations</span>
+        </div>
+
+        <!-- Anti-patterns -->
+        <div class="bg-white rounded-lg border p-4 space-y-3">
+          <h3 class="text-sm font-semibold text-red-700 uppercase tracking-wider">Anti-patterns Found</h3>
+
+          <div class="text-sm space-y-3">
+            <div class="border-l-2 border-red-300 pl-3">
+              <div class="font-mono text-xs text-slate-500">user_repository.go:224-269</div>
+              <p class="text-slate-700">Business logic embedded in SQL — COALESCE wildcard matching rules (<code class="bg-slate-100 px-1 rounded text-xs">office = '*' OR office = COALESCE(u.office, '')</code>) encode OU matching domain rules directly in SQL, making them untestable outside the database</p>
+              <pre class="bg-slate-50 rounded p-2 mt-1 text-xs overflow-x-auto"><code>AND (m.office      = '*' OR m.office      = COALESCE(u.office,     ''))
+AND (m.department  = '*' OR m.department  = COALESCE(u.department, ''))
+AND (m.division    = '*' OR m.division    = COALESCE(u.division,   ''))
+AND (m.section     = '*' OR m.section     = COALESCE(u.title,      ''))</code></pre>
+            </div>
+
+            <div class="border-l-2 border-red-300 pl-3">
+              <div class="font-mono text-xs text-slate-500">user_repository.go — 592 lines with complex UNION queries</div>
+              <p class="text-slate-700">Very complex SQL — same UNION query duplicated twice (lines 224-269 and 290-348) with minor column differences. 120+ line raw SQL blocks.</p>
+            </div>
+
+            <div class="border-l-2 border-red-300 pl-3">
+              <div class="font-mono text-xs text-slate-500">role_repository.go:220-263 (Stats query)</div>
+              <p class="text-slate-700">Repository method returning multiple scalar values — <code class="bg-slate-100 px-1 rounded text-xs">Stats()</code> returns 4 named ints via named return values, a query pattern that mixes aggregation concerns</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Healthy patterns -->
+        <div class="bg-white rounded-lg border p-4 space-y-3">
+          <h3 class="text-sm font-semibold text-emerald-700 uppercase tracking-wider">Healthy Patterns Observed</h3>
+          <div class="text-sm space-y-2">
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-500 mt-0.5">&#10003;</span>
+              <div><strong>Interface implementations</strong> — every repository implements a domain-defined interface (dependency inversion).</div>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-500 mt-0.5">&#10003;</span>
+              <div><strong>Error mapping</strong> — <code class="bg-slate-100 px-1 rounded text-xs">isDuplicateKeyError()</code> translates SQLSTATE 23505 → <code class="bg-slate-100 px-1 rounded text-xs">errs.ErrConflict</code>.</div>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-500 mt-0.5">&#10003;</span>
+              <div><strong>SQL injection prevention</strong> — parameterized queries + sorting allowlist in role_repository.go:114-126.</div>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-500 mt-0.5">&#10003;</span>
+              <div><strong>N+1 prevention</strong> — batch count queries like <code class="bg-slate-100 px-1 rounded text-xs">GetUserCountsByAppID()</code> return maps.</div>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-500 mt-0.5">&#10003;</span>
+              <div><strong>Transaction pattern</strong> — <code class="bg-slate-100 px-1 rounded text-xs">ReplaceByPattern()</code> wraps delete+insert in GORM transaction.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metric violations -->
+        <div class="bg-white rounded-lg border p-4 space-y-2">
+          <h3 class="text-sm font-semibold text-amber-700 uppercase tracking-wider">Metric Violations</h3>
+          <table class="text-sm w-full">
+            <thead><tr class="text-xs text-slate-400"><th class="text-left">File</th><th class="text-right">Actual</th><th class="text-right">Threshold</th></tr></thead>
+            <tbody>
+              <tr class="border-t"><td class="font-mono text-xs">user_repository.go</td><td class="text-right text-red-600 font-semibold">592 lines</td><td class="text-right text-slate-400">300</td></tr>
+              <tr class="border-t"><td class="font-mono text-xs">role_repository.go</td><td class="text-right text-red-600 font-semibold">417 lines</td><td class="text-right text-slate-400">300</td></tr>
+              <tr class="border-t"><td class="font-mono text-xs">ou_repository.go</td><td class="text-right text-red-600 font-semibold">378 lines</td><td class="text-right text-slate-400">300</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- CROSS-LAYER CANDIDATES                                       -->
+      <!-- ============================================================ -->
+      <section class="space-y-8">
+        <h2 class="text-xl font-semibold">Cross-Layer Candidates</h2>
+
+        <!-- C1: Extract Authorization Middleware -->
+        <article class="bg-white rounded-lg border p-6 space-y-4">
+          <div class="flex items-center gap-3">
+            <h3 class="text-lg font-semibold">C1: Extract Authorization Middleware</h3>
+            <span class="badge-strong text-xs font-semibold px-2 py-0.5 rounded-full">Strong</span>
+          </div>
+
+          <div class="flex gap-2 text-xs">
+            <span class="bg-indigo-100 text-indigo-700 rounded-full px-2 py-0.5">Presentation</span>
+            <span class="bg-violet-100 text-violet-700 rounded-full px-2 py-0.5">Application</span>
+          </div>
+
+          <div class="text-xs font-mono text-slate-500 space-y-0.5">
+            <div>handler/application_handler.go · 235 lines</div>
+            <div>handler/abac_assignment_handler.go · 202 lines</div>
+            <div>handler/ou_handler.go · 317 lines</div>
+            <div>middleware/auth_middleware.go · 307 lines</div>
+          </div>
+
+          <!-- Before/After diagrams -->
+          <div class="grid grid-cols-2 gap-4 diagram-box">
+            <div class="bg-slate-50 rounded p-3 flex flex-col">
+              <div class="text-xs uppercase tracking-wider text-slate-400 mb-2 font-semibold">Before</div>
+              <div class="flex-1 flex flex-col justify-center space-y-2">
+                <div class="border-l-4 border-indigo-400 bg-indigo-50 rounded-r p-2">
+                  <div class="text-xs uppercase tracking-wider font-semibold text-indigo-600">Handler</div>
+                  <div class="text-xs text-slate-500 mt-1">parse request</div>
+                  <div class="text-xs text-red-600 font-semibold mt-0.5">isSuperAdmin() check</div>
+                  <div class="text-xs text-red-600 font-semibold">isAdmin() check</div>
+                  <div class="text-xs text-slate-500 mt-0.5">call service</div>
+                  <div class="text-xs text-red-600 font-semibold">hasPermissionCode() check</div>
+                  <div class="text-xs text-slate-500">map response</div>
+                </div>
+                <div class="text-xs text-red-500 italic">3 different auth checks scattered across 5+ handler files</div>
+              </div>
+            </div>
+            <div class="bg-slate-50 rounded p-3 flex flex-col">
+              <div class="text-xs uppercase tracking-wider text-emerald-600 mb-2 font-semibold">After</div>
+              <div class="flex-1 flex flex-col justify-center space-y-2">
+                <div class="border-l-4 border-indigo-400 bg-indigo-50 rounded-r p-2">
+                  <div class="text-xs uppercase tracking-wider font-semibold text-indigo-600">Auth Middleware</div>
+                  <div class="text-xs text-emerald-600 font-semibold mt-1">Policy checks (single seam)</div>
+                </div>
+                <div class="border-l-4 border-indigo-400 bg-indigo-50 rounded-r p-2">
+                  <div class="text-xs uppercase tracking-wider font-semibold text-indigo-600">Handler</div>
+                  <div class="text-xs text-slate-500 mt-1">parse request</div>
+                  <div class="text-xs text-slate-500">call service</div>
+                  <div class="text-xs text-slate-500">map response</div>
+                </div>
+                <div class="text-xs text-emerald-600 italic">One seam — change access policy once</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Problem</div>
+              <p>Authorization logic (<code class="bg-slate-100 px-1 rounded text-xs">isSuperAdmin</code>, <code class="bg-slate-100 px-1 rounded text-xs">isAdmin</code>, <code class="bg-slate-100 px-1 rounded text-xs">hasPermissionCode</code>) scattered across handlers creates a shallow module with no single seam for access control changes.</p>
+            </div>
+            <div>
+              <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Solution</div>
+              <p>Centralize authorization into a Policy middleware or route-level decorator that checks permissions per route group, removing all inline auth checks from handler bodies.</p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2 text-xs">
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">single access-control seam</span>
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">testable authorization</span>
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">consistent enforcement</span>
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">handler simplification</span>
+          </div>
+        </article>
+
+        <!-- C2: Audit Logging Decorator -->
+        <article class="bg-white rounded-lg border p-6 space-y-4">
+          <div class="flex items-center gap-3">
+            <h3 class="text-lg font-semibold">C2: Audit Logging Decorator</h3>
+            <span class="badge-strong text-xs font-semibold px-2 py-0.5 rounded-full">Strong</span>
+          </div>
+
+          <div class="flex gap-2 text-xs">
+            <span class="bg-violet-100 text-violet-700 rounded-full px-2 py-0.5">Application</span>
+            <span class="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">Infrastructure</span>
+          </div>
+
+          <div class="text-xs font-mono text-slate-500 space-y-0.5">
+            <div>service/role_service.go · 332 lines (audit boilerplate at lines 183, 227, 259, 291, 314)</div>
+            <div>service/permission_service.go · 255 lines</div>
+            <div>service/ou_service.go · 509 lines</div>
+            <div>service/abac_assignment_service.go · 416 lines</div>
+            <div>service/abac_role_service.go</div>
+          </div>
+
+          <!-- Before/After: mass diagram -->
+          <div class="grid grid-cols-2 gap-4 diagram-box">
+            <div class="bg-slate-50 rounded p-3 flex flex-col">
+              <div class="text-xs uppercase tracking-wider text-slate-400 mb-2 font-semibold">Before — shallow audit module</div>
+              <div class="flex-1 flex flex-col justify-center space-y-1.5">
+                <div class="flex items-center gap-2">
+                  <div class="border border-slate-300 rounded px-2 py-1 text-xs" style="width:80px">interface</div>
+                  <div class="border-2 border-red-300 bg-red-50 rounded px-2 py-1 text-xs flex-1">audit boilerplate (6 lines, repeated 20x)</div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="border border-slate-300 rounded px-2 py-1 text-xs" style="width:80px">interface</div>
+                  <div class="border-2 border-red-300 bg-red-50 rounded px-2 py-1 text-xs flex-1">audit boilerplate (6 lines, repeated 20x)</div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="border border-slate-300 rounded px-2 py-1 text-xs" style="width:80px">interface</div>
+                  <div class="border-2 border-red-300 bg-red-50 rounded px-2 py-1 text-xs flex-1">audit boilerplate (6 lines, repeated 20x)</div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="border border-slate-300 rounded px-2 py-1 text-xs" style="width:80px">interface</div>
+                  <div class="border-2 border-red-300 bg-red-50 rounded px-2 py-1 text-xs flex-1">audit boilerplate (6 lines, repeated 20x)</div>
+                </div>
+                <div class="text-xs text-red-500 italic mt-1">~120 lines of identical audit code across services</div>
+              </div>
+            </div>
+            <div class="bg-slate-50 rounded p-3 flex flex-col">
+              <div class="text-xs uppercase tracking-wider text-emerald-600 mb-2 font-semibold">After — deep audit decorator</div>
+              <div class="flex-1 flex flex-col justify-center space-y-1.5">
+                <div class="flex items-center gap-2">
+                  <div class="border border-slate-300 rounded px-2 py-1 text-xs" style="width:80px">interface</div>
+                  <div class="border border-slate-300 rounded px-2 py-1 text-xs flex-1">business logic only</div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="border border-slate-300 rounded px-2 py-1 text-xs" style="width:80px">interface</div>
+                  <div class="border border-slate-300 rounded px-2 py-1 text-xs flex-1">business logic only</div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="border border-slate-300 rounded px-2 py-1 text-xs" style="width:80px">interface</div>
+                  <div class="border border-slate-300 rounded px-2 py-1 text-xs flex-1">business logic only</div>
+                </div>
+                <div class="border-2 border-emerald-400 bg-emerald-50 rounded px-2 py-1.5 text-xs mt-2">
+                  <span class="uppercase tracking-wider font-semibold text-emerald-700">Audit Decorator</span>
+                  <div class="text-xs text-emerald-600 mt-0.5">single seam — logs every mutation consistently</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Problem</div>
+              <p>Identical audit logging boilerplate in every service mutation creates a shallow module — change audit format and you edit 20+ methods across 5+ files.</p>
+            </div>
+            <div>
+              <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Solution</div>
+              <p>Extract audit logging into a service decorator or AOP-style wrapper that intercepts mutations and logs automatically, giving services a single responsibility.</p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2 text-xs">
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">single audit seam</span>
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">DRY mutations</span>
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">consistent log format</span>
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">easier format changes</span>
+          </div>
+        </article>
+
+        <!-- C3: Enrich Domain Models -->
+        <article class="bg-white rounded-lg border p-6 space-y-4">
+          <div class="flex items-center gap-3">
+            <h3 class="text-lg font-semibold">C3: Enrich Domain Models</h3>
+            <span class="badge-worth text-xs font-semibold px-2 py-0.5 rounded-full">Worth Exploring</span>
+          </div>
+
+          <div class="flex gap-2 text-xs">
+            <span class="bg-sky-100 text-sky-700 rounded-full px-2 py-0.5">Domain</span>
+            <span class="bg-violet-100 text-violet-700 rounded-full px-2 py-0.5">Application</span>
+          </div>
+
+          <div class="text-xs font-mono text-slate-500 space-y-0.5">
+            <div>model/role.go · 38 lines</div>
+            <div>model/application.go · 30 lines</div>
+            <div>model/user.go · 29 lines</div>
+            <div>+ 15 more model files</div>
+          </div>
+
+          <!-- Before/After: cross-section -->
+          <div class="grid grid-cols-2 gap-4 diagram-box">
+            <div class="bg-slate-50 rounded p-3 flex flex-col">
+              <div class="text-xs uppercase tracking-wider text-slate-400 mb-2 font-semibold">Before — anemic model</div>
+              <div class="flex-1 flex flex-col justify-center space-y-1">
+                <div class="border-l-4 border-violet-400 bg-violet-50 rounded-r p-2">
+                  <div class="text-xs uppercase tracking-wider font-semibold text-violet-600">Service</div>
+                  <div class="text-xs text-slate-500 mt-1">validation logic</div>
+                  <div class="text-xs text-slate-500">invariant checks</div>
+                  <div class="text-xs text-slate-500">status transitions</div>
+                </div>
+                <div class="border-l-4 border-sky-400 bg-sky-50 rounded-r p-2">
+                  <div class="text-xs uppercase tracking-wider font-semibold text-sky-600">Model</div>
+                  <div class="text-xs text-slate-400 italic mt-1">empty — just struct tags</div>
+                </div>
+              </div>
+            </div>
+            <div class="bg-slate-50 rounded p-3 flex flex-col">
+              <div class="text-xs uppercase tracking-wider text-emerald-600 mb-2 font-semibold">After — enriched model</div>
+              <div class="flex-1 flex flex-col justify-center space-y-1">
+                <div class="border-l-4 border-violet-400 bg-violet-50 rounded-r p-2">
+                  <div class="text-xs uppercase tracking-wider font-semibold text-violet-600">Service</div>
+                  <div class="text-xs text-slate-500 mt-1">orchestration only</div>
+                </div>
+                <div class="border-l-4 border-sky-400 bg-sky-50 rounded-r p-2">
+                  <div class="text-xs uppercase tracking-wider font-semibold text-sky-600">Model</div>
+                  <div class="text-xs text-emerald-600 mt-1">NewRole() — validates</div>
+                  <div class="text-xs text-emerald-600">private fields</div>
+                  <div class="text-xs text-emerald-600">setter methods with guards</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Problem</div>
+              <p>Anemic domain model forces all validation into services, scattering invariant enforcement across callers with no depth at the entity interface.</p>
+            </div>
+            <div>
+              <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Solution</div>
+              <p>Add constructor functions (<code class="bg-slate-100 px-1 rounded text-xs">NewRole</code>, <code class="bg-slate-100 px-1 rounded text-xs">NewPermission</code>) with validation, private fields, and domain errors for invalid state.</p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2 text-xs">
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">invariant locality</span>
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">less service validation</span>
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">self-documenting rules</span>
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">compile-time safety</span>
+          </div>
+        </article>
+
+        <!-- C4: Consolidate Repository Query Complexity -->
+        <article class="bg-white rounded-lg border p-6 space-y-4">
+          <div class="flex items-center gap-3">
+            <h3 class="text-lg font-semibold">C4: Consolidate Repository Query Complexity</h3>
+            <span class="badge-worth text-xs font-semibold px-2 py-0.5 rounded-full">Worth Exploring</span>
+          </div>
+
+          <div class="flex gap-2 text-xs">
+            <span class="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">Infrastructure</span>
+            <span class="bg-sky-100 text-sky-700 rounded-full px-2 py-0.5">Domain</span>
+          </div>
+
+          <div class="text-xs font-mono text-slate-500 space-y-0.5">
+            <div>repository/user_repository.go · 592 lines</div>
+            <div>repository/role_repository.go · 417 lines</div>
+            <div>repository/ou_repository.go · 378 lines</div>
+          </div>
+
+          <!-- Mermaid diagram -->
+          <div class="grid grid-cols-2 gap-4 diagram-box">
+            <div class="bg-slate-50 rounded p-3 flex flex-col">
+              <div class="text-xs uppercase tracking-wider text-slate-400 mb-2 font-semibold">Before — complex repo</div>
+              <div class="flex-1 overflow-hidden">
+                <pre class="mermaid text-xs">
+graph TD
+    SVC[OUService] -->|calls| REPO[UserRepository]
+    REPO -->|120-line| SQL1[UNION Query #1]
+    REPO -->|120-line| SQL2[UNION Query #2]
+    SQL1 -->|embeds| BIZ1[Wildcard Matching Rules]
+    SQL2 -->|embeds| BIZ2[Wildcard Matching Rules]
+    style SQL1 fill:#fef2f2,stroke:#dc2626
+    style SQL2 fill:#fef2f2,stroke:#dc2626
+    style BIZ1 fill:#fef2f2,stroke:#dc2626
+    style BIZ2 fill:#fef2f2,stroke:#dc2626
+                </pre>
+              </div>
+            </div>
+            <div class="bg-slate-50 rounded p-3 flex flex-col">
+              <div class="text-xs uppercase tracking-wider text-emerald-600 mb-2 font-semibold">After — query objects</div>
+              <div class="flex-1 overflow-hidden">
+                <pre class="mermaid text-xs">
+graph TD
+    SVC[OUService] -->|wildcard logic| QO[Query Object]
+    SVC -->|calls| REPO[UserRepository]
+    REPO -->|uses| QO
+    QO -->|clean| SQL[Parameterized Query]
+    style QO fill:#ecfdf5,stroke:#059669
+    style SQL fill:#ecfdf5,stroke:#059669
+                </pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Problem</div>
+              <p>Complex SQL with embedded business logic (COALESCE wildcard matching, UNION role resolution) in repositories creates a deep but untestable implementation with no abstraction seam.</p>
+            </div>
+            <div>
+              <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Solution</div>
+              <p>Extract complex queries into query objects or named query functions; move wildcard matching logic to service layer so repositories return raw data and services apply domain rules.</p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2 text-xs">
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">testable query logic</span>
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">separation of concerns</span>
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">reusable query patterns</span>
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">easier SQL review</span>
+          </div>
+        </article>
+
+        <!-- C5: Service Transaction Coordination -->
+        <article class="bg-white rounded-lg border p-6 space-y-4">
+          <div class="flex items-center gap-3">
+            <h3 class="text-lg font-semibold">C5: Service Transaction Coordination</h3>
+            <span class="badge-spec text-xs font-semibold px-2 py-0.5 rounded-full">Speculative</span>
+          </div>
+
+          <div class="flex gap-2 text-xs">
+            <span class="bg-violet-100 text-violet-700 rounded-full px-2 py-0.5">Application</span>
+            <span class="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">Infrastructure</span>
+          </div>
+
+          <div class="text-xs font-mono text-slate-500 space-y-0.5">
+            <div>service/ou_service.go · 509 lines</div>
+            <div>service/abac_assignment_service.go · 416 lines</div>
+            <div>service/abac_sync_service.go</div>
+          </div>
+
+          <!-- Mermaid diagram -->
+          <div class="grid grid-cols-2 gap-4 diagram-box">
+            <div class="bg-slate-50 rounded p-3 flex flex-col">
+              <div class="text-xs uppercase tracking-wider text-slate-400 mb-2 font-semibold">Before — fragmented tx</div>
+              <div class="flex-1 overflow-hidden">
+                <pre class="mermaid text-xs">
+graph TD
+    SVC[Service Method]
+    SVC -->|tx 1| R1[Repo A: begin/commit]
+    SVC -->|tx 2| R2[Repo B: begin/commit]
+    SVC -->|tx 3| R3[Repo C: begin/commit]
+    R1 -.->|fail after R2 commit| GAP[Consistency Gap]
+    style GAP fill:#fef2f2,stroke:#dc2626
+                </pre>
+              </div>
+            </div>
+            <div class="bg-slate-50 rounded p-3 flex flex-col">
+              <div class="text-xs uppercase tracking-wider text-emerald-600 mb-2 font-semibold">After — Unit of Work</div>
+              <div class="flex-1 overflow-hidden">
+                <pre class="mermaid text-xs">
+graph TD
+    SVC[Service Method]
+    SVC -->|single tx| UOW[Unit of Work]
+    UOW -->|shares tx| R1[Repo A]
+    UOW -->|shares tx| R2[Repo B]
+    UOW -->|shares tx| R3[Repo C]
+    UOW -->|commit/rollback| DB[(Database)]
+    style UOW fill:#ecfdf5,stroke:#059669
+                </pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Problem</div>
+              <p>Services can't coordinate transactions across repositories — each repo manages its own tx, creating a consistency gap for multi-step mutations.</p>
+            </div>
+            <div>
+              <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Solution</div>
+              <p>Introduce Unit of Work pattern: service begins a transaction context and passes it to all repositories, ensuring atomic commit/rollback across repos.</p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2 text-xs">
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">atomic multi-repo ops</span>
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">consistency guarantee</span>
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">simpler rollback</span>
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">clearer tx boundaries</span>
+          </div>
+        </article>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TOP RECOMMENDATION                                           -->
+      <!-- ============================================================ -->
+      <section class="deep rounded-xl p-8 text-white space-y-6">
+        <h2 class="text-xl font-semibold">Top Recommendation</h2>
+
+        <div class="grid grid-cols-2 gap-8">
+          <div class="space-y-4">
+            <div>
+              <div class="text-xs uppercase tracking-wider text-emerald-400 font-semibold mb-1">Start with</div>
+              <p class="text-lg font-semibold text-emerald-400">C1: Extract Authorization Middleware</p>
+            </div>
+            <div>
+              <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Why first</div>
+              <p class="text-sm text-slate-300">Highest impact, lowest risk. No schema changes, no data migration. Touches only handler files. Removes scattered auth checks from 5+ files into a single middleware seam. Every new endpoint benefits immediately.</p>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Recommended order</div>
+              <ol class="space-y-2 text-sm">
+                <li class="flex items-center gap-2">
+                  <span class="bg-emerald-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">1</span>
+                  <span class="text-emerald-400 font-semibold">C1</span>
+                  <span class="text-slate-300">Authorization Middleware — Presentation layer</span>
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="bg-emerald-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">2</span>
+                  <span class="text-emerald-400 font-semibold">C2</span>
+                  <span class="text-slate-300">Audit Decorator — Application layer</span>
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="bg-slate-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">3</span>
+                  <span class="text-amber-400 font-semibold">C3</span>
+                  <span class="text-slate-300">Domain Enrichment — Domain layer</span>
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="bg-slate-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">4</span>
+                  <span class="text-amber-400 font-semibold">C4</span>
+                  <span class="text-slate-300">Query Consolidation — Infrastructure layer</span>
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="bg-slate-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">5</span>
+                  <span class="text-slate-400 font-semibold">C5</span>
+                  <span class="text-slate-400">Transaction Coordination — if needed</span>
+                </li>
+              </ol>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-600 pt-4 text-xs text-slate-400">
+          Layer dependency order: Presentation depends on Application depends on Domain. Infrastructure implements Domain interfaces. Work inside-out: Domain changes propagate safely; Presentation changes are isolated.
+        </div>
+      </section>
+
+    </main>
+  </body>
+</html>

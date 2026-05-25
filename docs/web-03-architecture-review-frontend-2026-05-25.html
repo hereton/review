@@ -1,0 +1,894 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Frontend Architecture Review — Permission Center Web03</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+    </script>
+    <style>
+      .seam { stroke-dasharray: 4 4; }
+      .leak { stroke: #dc2626; }
+      .deep { background: linear-gradient(135deg, #0f172a, #1e293b); }
+      .badge-strong { background: #059669; color: white; }
+      .badge-worth { background: #d97706; color: white; }
+      .badge-spec { background: #64748b; color: white; }
+      .layer-presentation { border-left-color: #6366f1; }
+      .layer-application { border-left-color: #8b5cf6; }
+      .layer-domain { border-left-color: #0ea5e9; }
+      .layer-infrastructure { border-left-color: #f59e0b; }
+      .code-snippet { background: #1e293b; color: #e2e8f0; border-radius: 6px; padding: 12px 16px; font-size: 12px; font-family: 'SF Mono', 'Fira Code', monospace; overflow-x: auto; line-height: 1.5; }
+      .code-snippet .comment { color: #64748b; }
+      .code-snippet .keyword { color: #c084fc; }
+      .code-snippet .fn { color: #67e8f9; }
+      .code-snippet .string { color: #86efac; }
+      .code-snippet .type { color: #fbbf24; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- HEADER -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <header class="space-y-4">
+        <div class="flex items-center gap-3 text-xs uppercase tracking-wider text-slate-400">
+          <span>Architecture Review</span>
+          <span>·</span>
+          <span>2026-05-25</span>
+        </div>
+        <h1 class="text-3xl font-bold tracking-tight text-slate-900">Permission Center Web03</h1>
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="px-2 py-1 rounded bg-indigo-100 text-indigo-700">React 18.3</span>
+          <span class="px-2 py-1 rounded bg-sky-100 text-sky-700">TypeScript 5.7</span>
+          <span class="px-2 py-1 rounded bg-amber-100 text-amber-700">Vite 8</span>
+          <span class="px-2 py-1 rounded bg-violet-100 text-violet-700">TanStack Query 5</span>
+          <span class="px-2 py-1 rounded bg-emerald-100 text-emerald-700">Zustand 5</span>
+          <span class="px-2 py-1 rounded bg-rose-100 text-rose-700">Axios</span>
+          <span class="px-2 py-1 rounded bg-teal-100 text-teal-700">Tailwind 3</span>
+          <span class="px-2 py-1 rounded bg-slate-100 text-slate-600">react-router-dom 7</span>
+        </div>
+        <div class="grid grid-cols-4 gap-4 pt-4 border-t border-slate-200">
+          <div class="text-center">
+            <div class="text-2xl font-bold text-slate-900">108</div>
+            <div class="text-xs text-slate-500">Files</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold text-slate-900">17,759</div>
+            <div class="text-xs text-slate-500">Lines of Code</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold text-slate-900">0</div>
+            <div class="text-xs text-slate-500">Tests</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold text-slate-900">4</div>
+            <div class="text-xs text-slate-500">Layers</div>
+          </div>
+        </div>
+        <!-- Layer legend -->
+        <div class="flex gap-4 pt-4 border-t border-slate-200 text-xs">
+          <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-indigo-500 inline-block"></span> Presentation (53 files)</div>
+          <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-violet-500 inline-block"></span> Application (17 files)</div>
+          <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-sky-500 inline-block"></span> Domain (5 files)</div>
+          <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-amber-500 inline-block"></span> Infrastructure (26 files)</div>
+        </div>
+      </header>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- LAYER ANALYSIS: PRESENTATION -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-bold flex items-center gap-2">
+          <span class="w-2 h-6 rounded bg-indigo-500 inline-block"></span>
+          Presentation Layer
+        </h2>
+
+        <!-- Health scorecard -->
+        <div class="flex flex-wrap gap-2">
+          <span class="px-2 py-1 rounded text-xs bg-red-100 text-red-700">15 anti-patterns</span>
+          <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">10 healthy patterns</span>
+          <span class="px-2 py-1 rounded text-xs bg-amber-100 text-amber-700">13 metric violations</span>
+          <span class="px-2 py-1 rounded text-xs bg-slate-100 text-slate-600">0 layer violations</span>
+        </div>
+
+        <!-- Anti-patterns -->
+        <div class="border-l-4 layer-presentation pl-4 space-y-3">
+          <h3 class="text-sm font-semibold text-red-700 uppercase tracking-wide">Anti-patterns Found</h3>
+
+          <div class="space-y-2 text-sm">
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">pages/tabs/MappingTab.tsx · 1,170 lines</div>
+              <div class="font-medium">God component — renders entire mapping tab with inline modals, state machines, data transformation</div>
+              <div class="text-xs text-slate-500 mt-1">Contains <code>deriveStatus()</code> business logic at lines 26–38, inline modals, 5 hooks, 8 props</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">pages/RolesPage.tsx · 872 lines</div>
+              <div class="font-medium">God component with inline modals</div>
+              <div class="text-xs text-slate-500 mt-1">Contains <code>RoleEditorModal</code>, <code>InactivateRoleModal</code>, <code>DeleteRoleModal</code> defined inline (lines 54–465) — should be separate files</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">pages/EndUsersPage.tsx · 842 lines</div>
+              <div class="font-medium">Inline business logic + data transformation</div>
+              <div class="text-xs text-slate-500 mt-1"><code>formatLastSignIn()</code> (lines 53–69) and client-side OU filtering (lines 541–548) — domain concerns in presentation</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">pages/AuditLogsPage.tsx · 633 lines</div>
+              <div class="font-medium">Inline date-range transformation</div>
+              <div class="text-xs text-slate-500 mt-1"><code>dateRangeToISO()</code> (lines 91–111) — domain logic embedded in page component</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">pages/tabs/AutoTab.tsx · 584 lines</div>
+              <div class="font-medium">God component</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">pages/tabs/RolesTab.tsx · 548 lines</div>
+              <div class="font-medium">God component with inline modals</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">pages/tabs/ManualTab.tsx · 469 lines</div>
+              <div class="font-medium">Mixed concerns — fetches, filters, transforms, validates, renders</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">pages/PCUsersPage.tsx · 469 lines</div>
+              <div class="font-medium">God component</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">components/modals/AssignRoleModal.tsx · 690 lines</div>
+              <div class="font-medium">Contains debounce logic (lines 18–25) that should be a utility</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">components/Sidebar.tsx · 305 lines</div>
+              <div class="font-medium">Contains user authentication logic and logout functionality (lines 260–304)</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">pages/SettingsPage.tsx · 315 lines</div>
+              <div class="font-medium">Hardcoded mock data <code>HR_LOGS</code> and <code>AD_LOGS</code> arrays (lines 32–49)</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">components/modals/AutoMappingEditorModal.tsx · 609 lines</div>
+              <div class="font-medium">Oversized modal component</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Healthy patterns -->
+        <div class="border-l-4 border-emerald-400 pl-4 space-y-3">
+          <h3 class="text-sm font-semibold text-emerald-700 uppercase tracking-wide">Healthy Patterns</h3>
+          <div class="space-y-1 text-sm text-slate-600">
+            <div><span class="font-mono text-xs">components/DataTable.tsx</span> — Composition pattern with <code>renderRow</code> callback for flexible row rendering</div>
+            <div><span class="font-mono text-xs">components/PageHeader.tsx</span> — Consistent prop interface pattern across all pages</div>
+            <div><span class="font-mono text-xs">pages/ApplicationsPage.tsx</span> — Explicit search pattern: <code>qDraft</code> → <code>qApplied</code> separation</div>
+            <div><span class="font-mono text-xs">routes/layouts/AppLayout.tsx</span> — Clean layered composition of layout</div>
+            <div><span class="font-mono text-xs">pages/ApplicationsPage.tsx</span> — Proper useEffect cleanup for event listeners</div>
+            <div><span class="font-mono text-xs">pages/tabs/OverviewTab.tsx</span> — Consistent KPI card pattern reuse</div>
+            <div><span class="font-mono text-xs">components/modals/LogoutModal.tsx</span> — Single responsibility: only handles logout confirmation</div>
+          </div>
+        </div>
+
+        <!-- Metric violations -->
+        <div class="overflow-x-auto">
+          <table class="text-xs w-full">
+            <thead class="text-left text-slate-500 border-b border-slate-200">
+              <tr><th class="py-2 pr-4">File</th><th class="py-2 pr-4">Metric</th><th class="py-2 pr-4">Actual</th><th class="py-2">Threshold</th></tr>
+            </thead>
+            <tbody class="font-mono">
+              <tr><td class="py-1 pr-4">MappingTab.tsx</td><td class="pr-4">lines</td><td class="text-red-600 pr-4">1,170</td><td>&gt;300</td></tr>
+              <tr><td class="py-1 pr-4">RolesPage.tsx</td><td class="pr-4">lines</td><td class="text-red-600 pr-4">872</td><td>&gt;300</td></tr>
+              <tr><td class="py-1 pr-4">EndUsersPage.tsx</td><td class="pr-4">lines</td><td class="text-red-600 pr-4">842</td><td>&gt;300</td></tr>
+              <tr><td class="py-1 pr-4">AuditLogsPage.tsx</td><td class="pr-4">lines</td><td class="text-red-600 pr-4">633</td><td>&gt;300</td></tr>
+              <tr><td class="py-1 pr-4">AssignRoleModal.tsx</td><td class="pr-4">lines</td><td class="text-red-600 pr-4">690</td><td>&gt;300</td></tr>
+              <tr><td class="py-1 pr-4">AutoMappingEditorModal.tsx</td><td class="pr-4">lines</td><td class="text-red-600 pr-4">609</td><td>&gt;300</td></tr>
+              <tr><td class="py-1 pr-4">AutoTab.tsx</td><td class="pr-4">lines</td><td class="text-red-600 pr-4">584</td><td>&gt;300</td></tr>
+              <tr><td class="py-1 pr-4">RolesTab.tsx</td><td class="pr-4">lines</td><td class="text-red-600 pr-4">548</td><td>&gt;300</td></tr>
+              <tr><td class="py-1 pr-4">ManualTab.tsx</td><td class="pr-4">lines</td><td class="text-red-600 pr-4">469</td><td>&gt;300</td></tr>
+              <tr><td class="py-1 pr-4">PCUsersPage.tsx</td><td class="pr-4">lines</td><td class="text-red-600 pr-4">469</td><td>&gt;300</td></tr>
+              <tr><td class="py-1 pr-4">ApplicationsPage.tsx</td><td class="pr-4">lines</td><td class="text-red-600 pr-4">378</td><td>&gt;300</td></tr>
+              <tr><td class="py-1 pr-4">EndUsersPage.tsx</td><td class="pr-4">hooks</td><td class="text-red-600 pr-4">7</td><td>&gt;5</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- LAYER ANALYSIS: APPLICATION -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-bold flex items-center gap-2">
+          <span class="w-2 h-6 rounded bg-violet-500 inline-block"></span>
+          Application Layer
+        </h2>
+
+        <div class="flex flex-wrap gap-2">
+          <span class="px-2 py-1 rounded text-xs bg-red-100 text-red-700">3 anti-patterns</span>
+          <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">7 healthy patterns</span>
+          <span class="px-2 py-1 rounded text-xs bg-amber-100 text-amber-700">4 metric violations</span>
+          <span class="px-2 py-1 rounded text-xs bg-red-100 text-red-700">1 layer violation</span>
+        </div>
+
+        <div class="border-l-4 layer-application pl-4 space-y-3">
+          <h3 class="text-sm font-semibold text-red-700 uppercase tracking-wide">Anti-patterns Found</h3>
+          <div class="space-y-2 text-sm">
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">hooks/authProvider.tsx:10</div>
+              <div class="font-medium">Application → Presentation: imports <code>LoadingAfterRedirect</code> component</div>
+              <div class="code-snippet mt-2 text-xs">import { LoadingAfterRedirect } from '@/components/LoadingAfterRedirect';</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">hooks/authProvider.tsx:140,155</div>
+              <div class="font-medium">Stale closure risks — two <code>eslint-disable-line react-hooks/exhaustive-deps</code></div>
+              <div class="text-xs text-slate-500 mt-1">Effects intentionally omit deps, using <code>initRanRef.current</code> guards instead</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">Multiple feature hooks</div>
+              <div class="font-medium">Identical mutation scaffolding repeated across 8+ hook files</div>
+              <div class="text-xs text-slate-500 mt-1">Every CRUD hook repeats: <code>const qc = useQueryClient(); return useMutation({ onSuccess: () => qc.invalidateQueries(...), onError: pushToast })</code></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-l-4 border-emerald-400 pl-4 space-y-3">
+          <h3 class="text-sm font-semibold text-emerald-700 uppercase tracking-wide">Healthy Patterns</h3>
+          <div class="space-y-1 text-sm text-slate-600">
+            <div><span class="font-mono text-xs">features/*/hooks/</span> — Query key factories for consistent cache invalidation</div>
+            <div><span class="font-mono text-xs">contexts/MeContext.tsx</span> — Query gating with <code>enabled</code> flag prevents 401 storm on login page</div>
+            <div><span class="font-mono text-xs">store/authStore.ts</span> — Partial persistence: only <code>userInfo</code> persisted, access token always re-acquired</div>
+            <div><span class="font-mono text-xs">features/assignments/hooks/useAssignments.ts</span> — Debounce guidance documented in API contract comment</div>
+            <div><span class="font-mono text-xs">features/applications/hooks/useApplications.ts</span> — <code>placeholderData</code> keeps stale data visible during fetches</div>
+            <div><span class="font-mono text-xs">hooks/authProvider.tsx</span> — Ref guards prevent StrictMode double-fire issues</div>
+            <div><span class="font-mono text-xs">hooks/useAuth.ts</span> — Adapter pattern: composes authProvider, authStore, authUtils into single hook</div>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="text-xs w-full">
+            <thead class="text-left text-slate-500 border-b border-slate-200">
+              <tr><th class="py-2 pr-4">File</th><th class="py-2 pr-4">Metric</th><th class="py-2 pr-4">Actual</th><th class="py-2">Threshold</th></tr>
+            </thead>
+            <tbody class="font-mono">
+              <tr><td class="py-1 pr-4">useApplications.ts</td><td class="pr-4">exports</td><td class="text-amber-600 pr-4">8</td><td>&gt;5</td></tr>
+              <tr><td class="py-1 pr-4">usePermissions.ts</td><td class="pr-4">exports</td><td class="text-amber-600 pr-4">7</td><td>&gt;5</td></tr>
+              <tr><td class="py-1 pr-4">useRoles.ts</td><td class="pr-4">exports</td><td class="text-amber-600 pr-4">8</td><td>&gt;5</td></tr>
+              <tr><td class="py-1 pr-4">usePCUsers.ts</td><td class="pr-4">exports</td><td class="text-amber-600 pr-4">6</td><td>&gt;5</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- LAYER ANALYSIS: DOMAIN -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-bold flex items-center gap-2">
+          <span class="w-2 h-6 rounded bg-sky-500 inline-block"></span>
+          Domain Layer
+        </h2>
+
+        <div class="flex flex-wrap gap-2">
+          <span class="px-2 py-1 rounded text-xs bg-red-100 text-red-700">6 anti-patterns</span>
+          <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">5 healthy patterns</span>
+          <span class="px-2 py-1 rounded text-xs bg-amber-100 text-amber-700">2 metric violations</span>
+          <span class="px-2 py-1 rounded text-xs bg-red-100 text-red-700">2 layer violations</span>
+        </div>
+
+        <div class="border-l-4 layer-domain pl-4 space-y-3">
+          <h3 class="text-sm font-semibold text-red-700 uppercase tracking-wide">Anti-patterns Found</h3>
+          <div class="space-y-2 text-sm">
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">types.ts + api/*.ts — 5 files for Role entity</div>
+              <div class="font-medium">Duplicate type definitions across layers</div>
+              <div class="text-xs text-slate-500 mt-1">Role defined as: <code>Role</code> (types.ts), <code>ApiRole</code> (roleApi.ts), <code>RoleDisplay</code> (roleApi.ts), <code>ApiAffectedRole</code> (rolePermissionApi.ts), mock data (mock.ts)</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">configs/envConstants.ts:12</div>
+              <div class="font-medium">Impure domain config — accesses <code>window</code> global</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">configs/azureAuthConstants.ts:8</div>
+              <div class="font-medium">Impure domain config — accesses <code>window.location.origin</code></div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">api/index.ts:18</div>
+              <div class="font-medium">Barrel file re-exporting all API modules — breaks dependency analysis</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-l-4 border-emerald-400 pl-4 space-y-3">
+          <h3 class="text-sm font-semibold text-emerald-700 uppercase tracking-wide">Healthy Patterns</h3>
+          <div class="space-y-1 text-sm text-slate-600">
+            <div><span class="font-mono text-xs">types.ts</span> — Single source of truth for core domain entities</div>
+            <div><span class="font-mono text-xs">types.ts:90–91</span> — Discriminated unions: <code>PCUserRole</code> and <code>PCUserStatus</code> as string literal types</div>
+            <div><span class="font-mono text-xs">features/endUsers/types.ts</span> — Feature-scoped types properly isolated</div>
+            <div><span class="font-mono text-xs">types.ts:93–97</span> — Nested domain types model relationships properly</div>
+            <div><span class="font-mono text-xs">types.ts</span> — Pure type definitions with zero side effects</div>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="text-xs w-full">
+            <thead class="text-left text-slate-500 border-b border-slate-200">
+              <tr><th class="py-2 pr-4">File</th><th class="py-2 pr-4">Metric</th><th class="py-2 pr-4">Actual</th><th class="py-2">Threshold</th></tr>
+            </thead>
+            <tbody class="font-mono">
+              <tr><td class="py-1 pr-4">data/mock.ts</td><td class="pr-4">lines</td><td class="text-amber-600 pr-4">179</td><td>&gt;150</td></tr>
+              <tr><td class="py-1 pr-4">api/roleApi.ts, assignmentApi.ts</td><td class="pr-4">types for same entity</td><td class="text-red-600 pr-4">5 files</td><td>&gt;3</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- LAYER ANALYSIS: INFRASTRUCTURE -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-bold flex items-center gap-2">
+          <span class="w-2 h-6 rounded bg-amber-500 inline-block"></span>
+          Infrastructure Layer
+        </h2>
+
+        <div class="flex flex-wrap gap-2">
+          <span class="px-2 py-1 rounded text-xs bg-red-100 text-red-700">16 anti-patterns</span>
+          <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">7 healthy patterns</span>
+          <span class="px-2 py-1 rounded text-xs bg-amber-100 text-amber-700">8 metric violations</span>
+          <span class="px-2 py-1 rounded text-xs bg-red-100 text-red-700">7 layer violations</span>
+        </div>
+
+        <div class="border-l-4 layer-infrastructure pl-4 space-y-3">
+          <h3 class="text-sm font-semibold text-red-700 uppercase tracking-wide">Anti-patterns Found</h3>
+          <div class="space-y-2 text-sm">
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">api/client.ts:50–51</div>
+              <div class="font-medium text-red-700">Infrastructure mutates Application state</div>
+              <div class="code-snippet mt-2 text-xs">useAuthStore.getState().setUserInfo(token);
+useAuthStore.getState().setAccessToken(token);</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">lib/auth/provider.ts:74</div>
+              <div class="font-medium text-red-700">Hardcoded Microsoft Graph API URL</div>
+              <div class="code-snippet mt-2 text-xs">'https://graph.microsoft.com/v1.0/me?$select=displayName,mail,...'</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">api/roleApi.ts, permissionApi.ts, assignmentApi.ts, autoMappingApi.ts, pcUserApi.ts, activityApi.ts</div>
+              <div class="font-medium">Business logic in API clients — Thai date formatting, role mapping, action classification</div>
+              <div class="code-snippet mt-2 text-xs"><span class="comment">// api/pcUserApi.ts — Thai display string generation in infrastructure</span>
+function buildScopeDisplay(role, scopeApps) {
+  if (role === 'super_admin') return 'ทุกแอป';
+  if (role === 'auditor') return 'อ่านอย่างเดียว · ทุกแอป';
+  ...
+}</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">api/mock/roleMock.ts:83, permissionMock.ts:23</div>
+              <div class="font-medium">Duplicate hardcoded <code>APP_CODE_TO_ID</code> constants</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">lib/authUtils.ts:46,49</div>
+              <div class="font-medium">Error swallowing — <code>.catch(() => {})</code> silences failures</div>
+            </div>
+
+            <div class="bg-white rounded-lg p-3 shadow-sm border border-slate-200">
+              <div class="font-mono text-xs text-slate-500">api/roleApi.ts, permissionApi.ts, applicationApi.ts, assignmentApi.ts</div>
+              <div class="font-medium">Duplicated <code>Envelope&lt;T&gt;</code> type — defined identically in 4 files</div>
+              <div class="code-snippet mt-2 text-xs"><span class="comment">// Identical in roleApi.ts, permissionApi.ts, applicationApi.ts, assignmentApi.ts</span>
+type Envelope&lt;T&gt; = { status: string; message: string; data: T };</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-l-4 border-emerald-400 pl-4 space-y-3">
+          <h3 class="text-sm font-semibold text-emerald-700 uppercase tracking-wide">Healthy Patterns</h3>
+          <div class="space-y-1 text-sm text-slate-600">
+            <div><span class="font-mono text-xs">api/client.ts</span> — Custom <code>ApiError</code> class with typed status codes</div>
+            <div><span class="font-mono text-xs">api/client.ts</span> — Centralized 401 retry with automatic token refresh</div>
+            <div><span class="font-mono text-xs">api/client.ts</span> — Proactive token refresh via request interceptor</div>
+            <div><span class="font-mono text-xs">lib/auth/types.ts</span> — Vendor-neutral <code>AuthProvider</code> interface (adapter pattern)</div>
+            <div><span class="font-mono text-xs">lib/auth/provider.ts</span> — MSAL SDK wrapped behind clean interface (seam for replacement)</div>
+            <div><span class="font-mono text-xs">api/index.ts</span> — Clean mock/real API switching via single flag</div>
+            <div><span class="font-mono text-xs">lib/time.ts</span> — Pure utility functions with no side effects</div>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="text-xs w-full">
+            <thead class="text-left text-slate-500 border-b border-slate-200">
+              <tr><th class="py-2 pr-4">File</th><th class="py-2 pr-4">Metric</th><th class="py-2 pr-4">Actual</th><th class="py-2">Threshold</th></tr>
+            </thead>
+            <tbody class="font-mono">
+              <tr><td class="py-1 pr-4">assignmentApi.ts</td><td class="pr-4">lines</td><td class="text-amber-600 pr-4">249</td><td>&gt;200</td></tr>
+              <tr><td class="py-1 pr-4">autoMappingApi.ts</td><td class="pr-4">lines</td><td class="text-amber-600 pr-4">208</td><td>&gt;200</td></tr>
+              <tr><td class="py-1 pr-4">mock/permissionMock.ts</td><td class="pr-4">lines</td><td class="text-amber-600 pr-4">244</td><td>&gt;200</td></tr>
+              <tr><td class="py-1 pr-4">mock/roleMock.ts</td><td class="pr-4">lines</td><td class="text-amber-600 pr-4">272</td><td>&gt;200</td></tr>
+              <tr><td class="py-1 pr-4">applicationApi.ts</td><td class="pr-4">methods</td><td class="text-amber-600 pr-4">8</td><td>&gt;5</td></tr>
+              <tr><td class="py-1 pr-4">roleApi.ts</td><td class="pr-4">methods</td><td class="text-amber-600 pr-4">8</td><td>&gt;5</td></tr>
+              <tr><td class="py-1 pr-4">permissionApi.ts</td><td class="pr-4">methods</td><td class="text-amber-600 pr-4">7</td><td>&gt;5</td></tr>
+              <tr><td class="py-1 pr-4">assignmentApi.ts</td><td class="pr-4">methods</td><td class="text-amber-600 pr-4">7</td><td>&gt;5</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- CROSS-LAYER CANDIDATES -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <section class="space-y-8">
+        <h2 class="text-xl font-bold">Cross-Layer Deepening Candidates</h2>
+
+        <!-- CANDIDATE 1: CRUD API Factory -->
+        <article class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="p-6 space-y-4">
+            <div class="flex items-center gap-3 flex-wrap">
+              <h3 class="text-lg font-bold">Extract CRUD API Module Factory</h3>
+              <span class="px-2 py-0.5 rounded text-xs font-medium badge-strong">Strong</span>
+              <span class="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">Infrastructure</span>
+            </div>
+
+            <div class="flex flex-wrap gap-2 text-xs font-mono text-slate-500">
+              <span>api/roleApi.ts (167 lines)</span>
+              <span>api/permissionApi.ts (172 lines)</span>
+              <span>api/applicationApi.ts (154 lines)</span>
+              <span>api/assignmentApi.ts (249 lines)</span>
+            </div>
+
+            <!-- Before / After diagrams -->
+            <div class="grid grid-cols-2 gap-4">
+              <div class="bg-slate-50 rounded-lg p-4 min-h-[320px]">
+                <div class="text-xs uppercase tracking-wider text-slate-400 mb-3 font-semibold">Before</div>
+                <pre class="mermaid text-xs">
+graph LR
+  subgraph "4 identical API modules"
+    R[roleApi.ts] -->|Envelope + URLSearchParams + mapper| C1[client.ts]
+    P[permissionApi.ts] -->|Envelope + URLSearchParams + mapper| C1
+    A[applicationApi.ts] -->|Envelope + URLSearchParams + mapper| C1
+    AS[assignmentApi.ts] -->|Envelope + URLSearchParams + mapper| C1
+  end
+  style R fill:#fef3c7,stroke:#f59e0b
+  style P fill:#fef3c7,stroke:#f59e0b
+  style A fill:#fef3c7,stroke:#f59e0b
+  style AS fill:#fef3c7,stroke:#f59e0b
+                </pre>
+              </div>
+              <div class="bg-slate-50 rounded-lg p-4 min-h-[320px]">
+                <div class="text-xs uppercase tracking-wider text-slate-400 mb-3 font-semibold">After</div>
+                <pre class="mermaid text-xs">
+graph LR
+  F[createCrudApi factory] -->|generates| R[roleApi]
+  F -->|generates| P[permissionApi]
+  F -->|generates| A[applicationApi]
+  F -->|generates| AS[assignmentApi]
+  R --> C1[client.ts]
+  P --> C1
+  A --> C1
+  AS --> C1
+  style F fill:#059669,color:#fff,stroke:#047857
+                </pre>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <h4 class="text-xs uppercase tracking-wider text-red-600 font-semibold mb-1">Problem</h4>
+                <p class="text-sm">Four API modules duplicate identical scaffolding — <code>Envelope&lt;T&gt;</code> type, <code>URLSearchParams</code> filter builder, list-result mapper, activate/deactivate delegation — giving each module a shallow interface nearly as complex as its implementation.</p>
+              </div>
+              <div>
+                <h4 class="text-xs uppercase tracking-wider text-emerald-600 font-semibold mb-1">Solution</h4>
+                <p class="text-sm">Extract a <code>createCrudApi&lt;TApi, TDisplay, TFilter&gt;()</code> factory that provides depth at the seam — list, getById, create, update, updateStatus, activate, deactivate generated from configuration, with mapper injection point.</p>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">-300 lines removed</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">single source of truth</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">new API = config object</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">consistent error handling</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">easier to add endpoints</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- CANDIDATE 2: Mutation Hook Factory -->
+        <article class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="p-6 space-y-4">
+            <div class="flex items-center gap-3 flex-wrap">
+              <h3 class="text-lg font-bold">Extract Mutation Hook Factory</h3>
+              <span class="px-2 py-0.5 rounded text-xs font-medium badge-strong">Strong</span>
+              <span class="px-2 py-0.5 rounded text-xs font-medium bg-violet-100 text-violet-700">Application</span>
+            </div>
+
+            <div class="flex flex-wrap gap-2 text-xs font-mono text-slate-500">
+              <span>features/roles/hooks/useRoles.ts (88 lines)</span>
+              <span>features/permissions/hooks/usePermissions.ts (92 lines)</span>
+              <span>features/applications/hooks/useApplications.ts (77 lines)</span>
+              <span>features/assignments/hooks/useAssignments.ts (90 lines)</span>
+              <span>features/pcUsers/hooks/usePCUsers.ts (59 lines)</span>
+            </div>
+
+            <div class="code-snippet text-xs">
+<span class="comment">// Repeated verbatim in 5+ hook files, each with 6–8 exports:</span>
+<span class="keyword">export function</span> <span class="fn">useCreateXxx</span>(appCode: <span class="type">string</span>) {
+  <span class="keyword">const</span> qc = <span class="fn">useQueryClient</span>();
+  <span class="keyword">return</span> <span class="fn">useMutation</span>({
+    mutationFn: (payload) => <span class="fn">api.xxx.create</span>(appCode, payload),
+    onSuccess: () => qc.<span class="fn">invalidateQueries</span>({ queryKey: xxxKeys.<span class="fn">all</span>(appCode) }),
+    onError: (err: <span class="type">Error</span>) => <span class="fn">pushToast</span>({ title: <span class="string">'เกิดข้อผิดพลาด'</span>, desc: err.message, variant: <span class="string">'error'</span> }),
+  });
+}
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <h4 class="text-xs uppercase tracking-wider text-red-600 font-semibold mb-1">Problem</h4>
+                <p class="text-sm">Each feature hook file repeats identical mutation scaffolding — <code>useQueryClient</code>, <code>invalidateQueries</code> with key factory, <code>pushToast</code> error handler — giving each module a shallow interface with no leverage over the pattern.</p>
+              </div>
+              <div>
+                <h4 class="text-xs uppercase tracking-wider text-emerald-600 font-semibold mb-1">Solution</h4>
+                <p class="text-sm">Extract a <code>useCrudMutations(keyFactory, apiMethods, appCode)</code> hook that returns <code>{ create, update, activate, deactivate, delete }</code> — one seam concentrates all mutation locality.</p>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">-250 lines removed</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">consistent error toasts</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">new CRUD hooks = 1 call</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">cache invalidation centralized</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- CANDIDATE 3: Decompose God Components -->
+        <article class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="p-6 space-y-4">
+            <div class="flex items-center gap-3 flex-wrap">
+              <h3 class="text-lg font-bold">Decompose God Components</h3>
+              <span class="px-2 py-0.5 rounded text-xs font-medium badge-strong">Strong</span>
+              <span class="px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700">Presentation</span>
+            </div>
+
+            <div class="flex flex-wrap gap-2 text-xs font-mono text-slate-500">
+              <span>pages/tabs/MappingTab.tsx (1,170 lines)</span>
+              <span>pages/RolesPage.tsx (872 lines)</span>
+              <span>pages/EndUsersPage.tsx (842 lines)</span>
+              <span>pages/AuditLogsPage.tsx (633 lines)</span>
+              <span>components/modals/AssignRoleModal.tsx (690 lines)</span>
+            </div>
+
+            <!-- Cross-section diagram -->
+            <div class="grid grid-cols-2 gap-4">
+              <div class="bg-slate-50 rounded-lg p-4 min-h-[320px]">
+                <div class="text-xs uppercase tracking-wider text-slate-400 mb-3 font-semibold">Before — RolesPage.tsx</div>
+                <div class="space-y-1">
+                  <div class="border-l-4 border-indigo-400 bg-white rounded-r px-3 py-2 text-xs">
+                    <div class="font-semibold">Imports + Types</div>
+                    <div class="text-slate-400">Lines 1–52</div>
+                  </div>
+                  <div class="border-l-4 border-red-400 bg-white rounded-r px-3 py-2 text-xs">
+                    <div class="font-semibold">RoleEditorModal (inline)</div>
+                    <div class="text-slate-400">Lines 54–248 · 195 lines</div>
+                  </div>
+                  <div class="border-l-4 border-red-400 bg-white rounded-r px-3 py-2 text-xs">
+                    <div class="font-semibold">InactivateRoleModal (inline)</div>
+                    <div class="text-slate-400">Lines 250–353 · 104 lines</div>
+                  </div>
+                  <div class="border-l-4 border-red-400 bg-white rounded-r px-3 py-2 text-xs">
+                    <div class="font-semibold">DeleteRoleModal (inline)</div>
+                    <div class="text-slate-400">Lines 355–465 · 111 lines</div>
+                  </div>
+                  <div class="border-l-4 border-indigo-400 bg-white rounded-r px-3 py-2 text-xs">
+                    <div class="font-semibold">RolesPage component</div>
+                    <div class="text-slate-400">Lines 467–872 · 406 lines</div>
+                    <div class="text-slate-400">State + Handlers + Toolbar + Table + Modal routing</div>
+                  </div>
+                </div>
+              </div>
+              <div class="bg-slate-50 rounded-lg p-4 min-h-[320px]">
+                <div class="text-xs uppercase tracking-wider text-slate-400 mb-3 font-semibold">After — Extracted modules</div>
+                <div class="space-y-1">
+                  <div class="border-l-4 border-indigo-400 bg-emerald-50 rounded-r px-3 py-2 text-xs">
+                    <div class="font-semibold">RolesPage.tsx</div>
+                    <div class="text-emerald-700">~150 lines · thin orchestrator</div>
+                  </div>
+                  <div class="border-l-4 border-indigo-400 bg-emerald-50 rounded-r px-3 py-2 text-xs">
+                    <div class="font-semibold">useRolesPage.ts</div>
+                    <div class="text-emerald-700">~80 lines · state + handlers hook</div>
+                  </div>
+                  <div class="border-l-4 border-indigo-400 bg-emerald-50 rounded-r px-3 py-2 text-xs">
+                    <div class="font-semibold">RoleEditorModal.tsx</div>
+                    <div class="text-emerald-700">~195 lines · separate file</div>
+                  </div>
+                  <div class="border-l-4 border-indigo-400 bg-emerald-50 rounded-r px-3 py-2 text-xs">
+                    <div class="font-semibold">InactivateRoleModal.tsx</div>
+                    <div class="text-emerald-700">~104 lines · separate file</div>
+                  </div>
+                  <div class="border-l-4 border-indigo-400 bg-emerald-50 rounded-r px-3 py-2 text-xs">
+                    <div class="font-semibold">DeleteRoleModal.tsx</div>
+                    <div class="text-emerald-700">~104 lines · separate file</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <h4 class="text-xs uppercase tracking-wider text-red-600 font-semibold mb-1">Problem</h4>
+                <p class="text-sm">Five page/modal modules exceed 600 lines, inlining sub-components, state machines, and event handlers — each module has no seam between concerns, concentrating bugs and change across the entire file.</p>
+              </div>
+              <div>
+                <h4 class="text-xs uppercase tracking-wider text-emerald-600 font-semibold mb-1">Solution</h4>
+                <p class="text-sm">Extract inline modals to separate files, extract page state into custom hooks (<code>useRolesPage</code>, <code>useMappingTab</code>) — each extracted module gains depth and locality at its interface.</p>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">each file &lt;300 lines</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">testable page logic</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">reusable modals</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">easier code review</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">parallel-safe edits</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- CANDIDATE 4: Move Display Mappers Out of Infrastructure -->
+        <article class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="p-6 space-y-4">
+            <div class="flex items-center gap-3 flex-wrap">
+              <h3 class="text-lg font-bold">Relocate Display Mappers to Application Layer</h3>
+              <span class="px-2 py-0.5 rounded text-xs font-medium badge-worth">Worth Exploring</span>
+              <span class="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">Infrastructure</span>
+              <span class="px-2 py-0.5 rounded text-xs font-medium bg-violet-100 text-violet-700">Application</span>
+            </div>
+
+            <div class="flex flex-wrap gap-2 text-xs font-mono text-slate-500">
+              <span>api/roleApi.ts:82–95 (toRoleDisplay)</span>
+              <span>api/permissionApi.ts:85–98 (toPermissionDisplay)</span>
+              <span>api/assignmentApi.ts:127–147 (toAssignmentDisplay)</span>
+              <span>api/pcUserApi.ts:84–114 (toPCUser, buildScopeDisplay)</span>
+              <span>api/activityApi.ts:58–79 (actionToKind)</span>
+            </div>
+
+            <!-- Layer violation diagram -->
+            <div class="grid grid-cols-2 gap-4">
+              <div class="bg-slate-50 rounded-lg p-4 min-h-[320px]">
+                <div class="text-xs uppercase tracking-wider text-slate-400 mb-3 font-semibold">Before — Mappers in Infrastructure</div>
+                <pre class="mermaid text-xs">
+graph TB
+  subgraph Infra["Infrastructure Layer"]
+    API["API client<br/>+ toRoleDisplay()<br/>+ buildScopeDisplay()<br/>+ actionToKind()<br/>+ Thai date formatting"]
+  end
+  subgraph App["Application Layer"]
+    H[Feature Hooks]
+  end
+  subgraph Pres["Presentation"]
+    P[Pages]
+  end
+  P --> H --> API
+  style API fill:#fef3c7,stroke:#f59e0b
+  style H fill:#ede9fe,stroke:#8b5cf6
+  style P fill:#eef2ff,stroke:#6366f1
+                </pre>
+              </div>
+              <div class="bg-slate-50 rounded-lg p-4 min-h-[320px]">
+                <div class="text-xs uppercase tracking-wider text-slate-400 mb-3 font-semibold">After — Mappers in Application</div>
+                <pre class="mermaid text-xs">
+graph TB
+  subgraph Infra["Infrastructure Layer"]
+    API["API client<br/>raw snake_case data"]
+  end
+  subgraph App["Application Layer"]
+    M["Mapper module<br/>+ toRoleDisplay()<br/>+ toPermissionDisplay()"]
+    H[Feature Hooks]
+  end
+  subgraph Pres["Presentation"]
+    P[Pages]
+  end
+  P --> H --> M --> API
+  style API fill:#fef3c7,stroke:#f59e0b
+  style M fill:#059669,color:#fff
+  style H fill:#ede9fe,stroke:#8b5cf6
+  style P fill:#eef2ff,stroke:#6366f1
+                </pre>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <h4 class="text-xs uppercase tracking-wider text-red-600 font-semibold mb-1">Problem</h4>
+                <p class="text-sm">API modules contain Thai date formatting, role name mapping, and action classification — business logic that violates the Infrastructure layer's contract, making it hard to test and reuse.</p>
+              </div>
+              <div>
+                <h4 class="text-xs uppercase tracking-wider text-emerald-600 font-semibold mb-1">Solution</h4>
+                <p class="text-sm">API clients return raw snake_case data; feature hooks or a dedicated mapper module in Application layer maps to display types — Infrastructure stays thin, mappers become testable.</p>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">testable mappers</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">pure infrastructure</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">layer boundaries respected</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">reusable formatters</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- CANDIDATE 5: Page Scaffolding Pattern -->
+        <article class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="p-6 space-y-4">
+            <div class="flex items-center gap-3 flex-wrap">
+              <h3 class="text-lg font-bold">Extract Shared Page Shell</h3>
+              <span class="px-2 py-0.5 rounded text-xs font-medium badge-worth">Worth Exploring</span>
+              <span class="px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700">Presentation</span>
+            </div>
+
+            <div class="flex flex-wrap gap-2 text-xs font-mono text-slate-500">
+              <span>pages/RolesPage.tsx</span>
+              <span>pages/PermissionsTab.tsx</span>
+              <span>pages/ManualTab.tsx</span>
+              <span>pages/AutoTab.tsx</span>
+              <span>pages/AuditLogsPage.tsx</span>
+              <span>pages/EndUsersPage.tsx</span>
+            </div>
+
+            <div class="code-snippet text-xs">
+<span class="comment">// Repeated in 6+ pages — toolbar + search + filter + loading + error + empty:</span>
+<span class="keyword">const</span> [qDraft, setQDraft] = <span class="fn">useState</span>('');
+<span class="keyword">const</span> [qApplied, setQApplied] = <span class="fn">useState</span>('');
+<span class="keyword">const</span> { sortCol, sortDir, toggleSort, page, pageSize, ... } = <span class="fn">useTableState</span>(...);
+<span class="keyword">const</span> doSearch = () => { setQApplied(qDraft); setPage(1); };
+<span class="keyword">const</span> clearFilters = () => { setQDraft(''); setQApplied(''); setPage(1); };
+<span class="comment">// ... identical loading/error/empty JSX blocks</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <h4 class="text-xs uppercase tracking-wider text-red-600 font-semibold mb-1">Problem</h4>
+                <p class="text-sm">Every list page repeats identical scaffolding — search input with draft/applied pattern, status filter dropdown, loading/error/empty state JSX — each page's implementation is as wide as its interface with no leverage.</p>
+              </div>
+              <div>
+                <h4 class="text-xs uppercase tracking-wider text-emerald-600 font-semibold mb-1">Solution</h4>
+                <p class="text-sm">Extract a <code>ListPageShell</code> component accepting search/filter config, loading state, and a <code>renderContent</code> slot — concentrates scaffolding in one module with deep leverage.</p>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">-400 lines across pages</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">consistent page UX</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">new page = fill slots</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">centralized loading UX</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- CANDIDATE 6: Break Infra→App Coupling -->
+        <article class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="p-6 space-y-4">
+            <div class="flex items-center gap-3 flex-wrap">
+              <h3 class="text-lg font-bold">Break Infrastructure → Application Coupling</h3>
+              <span class="px-2 py-0.5 rounded text-xs font-medium badge-worth">Worth Exploring</span>
+              <span class="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">Infrastructure</span>
+              <span class="px-2 py-0.5 rounded text-xs font-medium bg-violet-100 text-violet-700">Application</span>
+            </div>
+
+            <div class="flex flex-wrap gap-2 text-xs font-mono text-slate-500">
+              <span>api/client.ts:4 (imports authStore)</span>
+              <span>lib/authUtils.ts:3 (imports authStore)</span>
+              <span>lib/authUtils.ts:4 (imports queryClient)</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div class="bg-slate-50 rounded-lg p-4 min-h-[280px]">
+                <div class="text-xs uppercase tracking-wider text-slate-400 mb-3 font-semibold">Before — Circular Dependency</div>
+                <pre class="mermaid text-xs">
+graph LR
+  C[api/client.ts] -->|mutates state| S[authStore.ts]
+  AU[authUtils.ts] -->|calls| S
+  AU -->|calls| Q[queryClient]
+  S -->|reads token| C
+  Q -->|uses| C
+  style C fill:#fef3c7,stroke:#f59e0b
+  style S fill:#ede9fe,stroke:#8b5cf6
+  style AU fill:#fef3c7,stroke:#f59e0b
+  style Q fill:#ede9fe,stroke:#8b5cf6
+  linkStyle 0,3 stroke:#dc2626,stroke-width:2
+                </pre>
+              </div>
+              <div class="bg-slate-50 rounded-lg p-4 min-h-[280px]">
+                <div class="text-xs uppercase tracking-wider text-slate-400 mb-3 font-semibold">After — Injection Pattern</div>
+                <pre class="mermaid text-xs">
+graph LR
+  C[api/client.ts] -->|calls callback| CB[onTokenRefresh]
+  S[authStore.ts] -->|registers callback| CB
+  AU[authUtils.ts] -->|calls| S
+  Q[queryClient] -->|uses| C
+  style C fill:#fef3c7,stroke:#f59e0b
+  style S fill:#ede9fe,stroke:#8b5cf6
+  style CB fill:#059669,color:#fff
+                </pre>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <h4 class="text-xs uppercase tracking-wider text-red-600 font-semibold mb-1">Problem</h4>
+                <p class="text-sm">Infrastructure module <code>api/client.ts</code> directly mutates Application state (<code>useAuthStore.setAccessToken</code>), creating a reverse dependency — the inner layer depends on the outer layer.</p>
+              </div>
+              <div>
+                <h4 class="text-xs uppercase tracking-wider text-emerald-600 font-semibold mb-1">Solution</h4>
+                <p class="text-sm">Client accepts an <code>onTokenRefresh</code> callback at initialization — Application layer registers the store mutation, Infrastructure stays unaware of store implementation.</p>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">clean layer boundaries</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">testable API client</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">no circular deps</span>
+              <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-700">portable auth logic</span>
+            </div>
+          </div>
+        </article>
+
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- TOP RECOMMENDATION -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <section class="deep rounded-xl p-8 text-white space-y-6">
+        <h2 class="text-2xl font-bold">Top Recommendation</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="bg-white/10 rounded-lg p-4">
+            <div class="text-xs uppercase tracking-wider text-emerald-400 mb-2">Start Here</div>
+            <div class="font-bold text-lg">Candidate 3</div>
+            <div class="text-sm text-slate-300">Decompose God Components</div>
+          </div>
+          <div class="bg-white/10 rounded-lg p-4">
+            <div class="text-xs uppercase tracking-wider text-amber-400 mb-2">Then</div>
+            <div class="font-bold text-lg">Candidates 1 + 2</div>
+            <div class="text-sm text-slate-300">API + Hook factories (parallel, same PR)</div>
+          </div>
+          <div class="bg-white/10 rounded-lg p-4">
+            <div class="text-xs uppercase tracking-wider text-sky-400 mb-2">Finally</div>
+            <div class="font-bold text-lg">Candidates 4 + 6</div>
+            <div class="text-sm text-slate-300">Layer boundary fixes</div>
+          </div>
+        </div>
+
+        <div class="space-y-3 text-sm text-slate-300">
+          <p><strong class="text-white">Why start with god components?</strong> They block all other improvements. You can't extract a page shell or relocate mappers while MappingTab.tsx is 1,170 lines. Decomposition creates the seams that the other candidates need.</p>
+          <p><strong class="text-white">Why factories next?</strong> Once pages are decomposed, the API module and hook scaffolding duplication becomes the biggest maintenance burden. A factory removes ~550 lines of identical code and makes adding new entities trivial.</p>
+          <p><strong class="text-white">Layer fixes last</strong> because they're lower risk but require the other refactors to be stable first. The infrastructure→application coupling is a latent risk, not an active blocker.</p>
+        </div>
+
+        <div class="border-t border-white/20 pt-4 flex flex-wrap gap-3">
+          <div class="text-xs uppercase tracking-wider text-slate-400">Estimated Impact</div>
+          <span class="px-2 py-1 rounded text-xs bg-emerald-500/30 text-emerald-300">-1,200 lines removed</span>
+          <span class="px-2 py-1 rounded text-xs bg-emerald-500/30 text-emerald-300">All files &lt;300 lines</span>
+          <span class="px-2 py-1 rounded text-xs bg-emerald-500/30 text-emerald-300">0 layer violations</span>
+          <span class="px-2 py-1 rounded text-xs bg-emerald-500/30 text-emerald-300">New entity in ~50 lines</span>
+        </div>
+      </section>
+
+    </main>
+  </body>
+</html>
