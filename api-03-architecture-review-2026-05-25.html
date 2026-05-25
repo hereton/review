@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Architecture review — permission-center-api03</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+    </script>
+    <style>
+      .seam { stroke-dasharray: 4 4; }
+      .leak { stroke: #dc2626; }
+      .deep { background: linear-gradient(135deg, #0f172a, #1e293b); }
+      .badge-strong { background: #059669; color: white; }
+      .badge-worth { background: #d97706; color: white; }
+      .badge-spec { background: #64748b; color: white; }
+      .diagram-box { min-height: 320px; }
+      .diagram-box.mermaid-wrap { display: flex; align-items: center; justify-content: center; }
+      .diagram-box.mermaid-wrap pre { margin: 0; }
+      .diagram-box.mermaid-wrap svg { max-height: 310px; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+      <!-- Header -->
+      <header class="space-y-4">
+        <div class="flex items-center gap-3">
+          <h1 class="text-2xl font-bold tracking-tight">Architecture Review</h1>
+          <span class="text-sm text-slate-500">permission-center-api03</span>
+        </div>
+        <p class="text-sm text-slate-600 max-w-2xl">
+          Go 1.25 clean-architecture API for centralized RBAC + ABAC permission management across CJ Express applications (TA, PLMS, PMS, Web Promotion, CJX). 103 source files, ~24 K lines. Gin + sqlx + PostgreSQL 16 + Azure AD JWT.
+        </p>
+        <div class="flex gap-4 text-xs text-slate-500">
+          <span>Date: 2026-05-25</span>
+          <span>|</span>
+          <span>5 candidates</span>
+          <span>|</span>
+          <span>Layers: handler → usecase → domain ← repository</span>
+        </div>
+        <!-- Legend -->
+        <div class="flex gap-4 text-xs pt-2">
+          <span class="badge-strong px-2 py-0.5 rounded">Strong</span>
+          <span class="badge-worth px-2 py-0.5 rounded">Worth Exploring</span>
+          <span class="badge-spec px-2 py-0.5 rounded">Speculative</span>
+        </div>
+      </header>
+
+      <!-- ============================================================ -->
+      <!-- Candidate 1 — Handler Error Mapping                         -->
+      <!-- ============================================================ -->
+      <article class="bg-white rounded-lg border border-slate-200 p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-lg font-semibold">Handler Error Mapping</h2>
+          <span class="badge-strong text-xs px-2 py-0.5 rounded">Strong</span>
+        </div>
+
+        <!-- Files -->
+        <div class="text-xs font-mono text-slate-600 space-y-0.5">
+          <div>internal/handler/application_handler.go &nbsp;<span class="text-slate-400">266 lines</span></div>
+          <div>internal/handler/role_handler.go &nbsp;<span class="text-slate-400">294 lines</span></div>
+          <div>internal/handler/assignment_handler.go &nbsp;<span class="text-slate-400">281 lines</span></div>
+          <div>internal/handler/permission_handler.go &nbsp;<span class="text-slate-400">255 lines</span></div>
+          <div>internal/handler/pc_admin_handler.go &nbsp;<span class="text-slate-400">266 lines</span></div>
+          <div>internal/handler/ou_app_mapping_handler.go &nbsp;<span class="text-slate-400">263 lines</span></div>
+          <div>internal/handler/role_permission_handler.go &nbsp;<span class="text-slate-400">247 lines</span></div>
+          <div>internal/handler/auto_mapping_handler.go &nbsp;<span class="text-slate-400">203 lines</span></div>
+        </div>
+
+        <!-- Before / After — Mass Diagram -->
+        <div class="grid grid-cols-2 gap-4">
+          <!-- Before -->
+          <div class="space-y-2">
+            <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Before</p>
+            <div class="diagram-box bg-slate-50 rounded border border-slate-200 p-4 flex flex-col gap-2 justify-center">
+              <!-- 8 thin boxes representing handleXError functions -->
+              <div class="bg-white rounded border border-red-200 px-3 py-1.5 flex items-center justify-between">
+                <span class="text-xs uppercase tracking-wider text-slate-600">handleAppError</span>
+                <span class="text-xs text-red-400">18 lines</span>
+              </div>
+              <div class="bg-white rounded border border-red-200 px-3 py-1.5 flex items-center justify-between">
+                <span class="text-xs uppercase tracking-wider text-slate-600">handleRoleError</span>
+                <span class="text-xs text-red-400">18 lines</span>
+              </div>
+              <div class="bg-white rounded border border-red-200 px-3 py-1.5 flex items-center justify-between">
+                <span class="text-xs uppercase tracking-wider text-slate-600">handleAssignmentError</span>
+                <span class="text-xs text-red-400">18 lines</span>
+              </div>
+              <div class="bg-white rounded border border-red-200 px-3 py-1.5 flex items-center justify-between">
+                <span class="text-xs uppercase tracking-wider text-slate-600">handlePermissionError</span>
+                <span class="text-xs text-red-400">18 lines</span>
+              </div>
+              <div class="bg-white rounded border border-red-200 px-3 py-1.5 flex items-center justify-between">
+                <span class="text-xs uppercase tracking-wider text-slate-600">handlePCAdminError</span>
+                <span class="text-xs text-red-400">22 lines</span>
+              </div>
+              <div class="bg-white rounded border border-red-200 px-3 py-1.5 flex items-center justify-between">
+                <span class="text-xs uppercase tracking-wider text-slate-600">handleOUMappingError</span>
+                <span class="text-xs text-red-400">18 lines</span>
+              </div>
+              <div class="bg-white rounded border border-red-200 px-3 py-1.5 flex items-center justify-between">
+                <span class="text-xs uppercase tracking-wider text-slate-600">handleRolePermError</span>
+                <span class="text-xs text-red-400">18 lines</span>
+              </div>
+              <div class="bg-white rounded border border-red-200 px-3 py-1.5 flex items-center justify-between">
+                <span class="text-xs uppercase tracking-wider text-slate-600">handleAutoMapError</span>
+                <span class="text-xs text-red-400">18 lines</span>
+              </div>
+              <p class="text-xs text-red-400 text-center pt-1">~160 lines duplicated switch logic</p>
+            </div>
+          </div>
+          <!-- After -->
+          <div class="space-y-2">
+            <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold">After</p>
+            <div class="diagram-box bg-slate-50 rounded border border-slate-200 p-4 flex flex-col gap-2 justify-center">
+              <div class="deep rounded p-4 text-center">
+                <span class="text-xs uppercase tracking-wider text-emerald-400 font-semibold">HandleError</span>
+                <p class="text-xs text-slate-400 mt-1">shared switch: validation→400, not-found→404, conflict→409, default→500</p>
+              </div>
+              <div class="bg-white rounded border border-emerald-200 px-3 py-1.5 text-center">
+                <span class="text-xs uppercase tracking-wider text-slate-600">ErrorMap per module</span>
+                <p class="text-xs text-slate-400 mt-0.5">domain-specific sentinels → Thai messages</p>
+              </div>
+              <div class="flex gap-2 mt-2">
+                <div class="flex-1 bg-emerald-50 rounded px-2 py-1 text-center text-xs text-emerald-700">App</div>
+                <div class="flex-1 bg-emerald-50 rounded px-2 py-1 text-center text-xs text-emerald-700">Role</div>
+                <div class="flex-1 bg-emerald-50 rounded px-2 py-1 text-center text-xs text-emerald-700">Assign</div>
+                <div class="flex-1 bg-emerald-50 rounded px-2 py-1 text-center text-xs text-emerald-700">Perm</div>
+              </div>
+              <div class="flex gap-2">
+                <div class="flex-1 bg-emerald-50 rounded px-2 py-1 text-center text-xs text-emerald-700">PCAdmin</div>
+                <div class="flex-1 bg-emerald-50 rounded px-2 py-1 text-center text-xs text-emerald-700">OUMap</div>
+                <div class="flex-1 bg-emerald-50 rounded px-2 py-1 text-center text-xs text-emerald-700">RolePerm</div>
+                <div class="flex-1 bg-emerald-50 rounded px-2 py-1 text-center text-xs text-emerald-700">AutoMap</div>
+              </div>
+              <p class="text-xs text-emerald-600 text-center pt-1">~40 lines shared + 3-5 per module</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Exact Duplication -->
+        <div class="bg-slate-50 rounded p-4 text-xs font-mono space-y-2">
+          <p class="text-xs font-sans font-semibold text-slate-500 mb-2">Exact pattern repeated 8 times:</p>
+          <pre class="text-slate-700"><code>func handleXError(c *gin.Context, err error) {
+    var ve domain.ErrValidation
+    switch {
+    case errors.As(err, &ve):
+        c.JSON(http.StatusBadRequest, domain.Error(err.Error()))
+    case errors.Is(err, domain.ErrNotFound):
+        c.JSON(http.StatusNotFound, domain.Error("..."))
+    case errors.Is(err, domain.ErrConflict):
+        c.JSON(http.StatusConflict, domain.Error("..."))
+    default:
+        slog.Error("...", "error", err)
+        c.JSON(http.StatusInternalServerError, domain.Error("..."))
+    }
+}</code></pre>
+        </div>
+
+        <!-- Problem / Solution -->
+        <div class="space-y-2 text-sm">
+          <p><span class="font-semibold text-red-600">Problem:</span> Shallow modules — each handler re-implements the same error-to-HTTP mapping interface, giving callers no leverage from the domain error vocabulary.</p>
+          <p><span class="font-semibold text-emerald-700">Solution:</span> Extract a shared <code class="text-xs bg-slate-100 px-1 rounded">HandleError(c, err, ErrorMap)</code> where <code class="text-xs bg-slate-100 px-1 rounded">ErrorMap</code> maps domain sentinels to HTTP status + Thai message. Each handler registers only its domain-specific entries.</p>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="badge-strong text-xs px-2 py-0.5 rounded">~-120 lines removed</span>
+          <span class="badge-strong text-xs px-2 py-0.5 rounded">single error seam</span>
+          <span class="badge-strong text-xs px-2 py-0.5 rounded">new modules auto-covered</span>
+          <span class="badge-strong text-xs px-2 py-0.5 rounded">consistent HTTP mapping</span>
+        </div>
+      </article>
+
+      <!-- ============================================================ -->
+      <!-- Candidate 2 — Repository Query Building                     -->
+      <!-- ============================================================ -->
+      <article class="bg-white rounded-lg border border-slate-200 p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-lg font-semibold">Repository Query Building</h2>
+          <span class="badge-worth text-xs px-2 py-0.5 rounded">Worth Exploring</span>
+        </div>
+
+        <!-- Files -->
+        <div class="text-xs font-mono text-slate-600 space-y-0.5">
+          <div>internal/repository/application_repository.go &nbsp;<span class="text-slate-400">236 lines — buildOrderBy()</span></div>
+          <div>internal/repository/permission_repository.go &nbsp;<span class="text-slate-400">216 lines — permOrderBy()</span></div>
+          <div>internal/repository/role_repository.go &nbsp;<span class="text-slate-400">236 lines — roleOrderBy()</span></div>
+          <div>internal/repository/assignment_repository.go &nbsp;<span class="text-slate-400">401 lines — assignmentOrderBy()</span></div>
+          <div>internal/repository/ou_app_mapping_repository.go &nbsp;<span class="text-slate-400">395 lines — ouMappingOrderBy() + buildWhere()</span></div>
+          <div>internal/repository/org_rule_repository.go &nbsp;<span class="text-slate-400">437 lines — orgRuleOrderBy()</span></div>
+        </div>
+
+        <!-- Before / After — Cross-section -->
+        <div class="grid grid-cols-2 gap-4">
+          <!-- Before -->
+          <div class="space-y-2">
+            <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Before</p>
+            <div class="diagram-box bg-slate-50 rounded border border-slate-200 p-4 flex flex-col gap-1 justify-center">
+              <div class="border-l-4 border-red-400 pl-3 py-1">
+                <span class="text-xs font-semibold text-slate-700">application_repo</span>
+                <div class="text-xs text-slate-500">ORDER BY builder + manual WHERE concat</div>
+              </div>
+              <div class="border-l-4 border-red-400 pl-3 py-1">
+                <span class="text-xs font-semibold text-slate-700">permission_repo</span>
+                <div class="text-xs text-slate-500">ORDER BY builder + manual WHERE concat</div>
+              </div>
+              <div class="border-l-4 border-red-400 pl-3 py-1">
+                <span class="text-xs font-semibold text-slate-700">role_repo</span>
+                <div class="text-xs text-slate-500">ORDER BY builder + manual WHERE concat</div>
+              </div>
+              <div class="border-l-4 border-amber-400 pl-3 py-1">
+                <span class="text-xs font-semibold text-slate-700">assignment_repo</span>
+                <div class="text-xs text-slate-500">ORDER BY builder + escapeLike() + manual WHERE</div>
+              </div>
+              <div class="border-l-4 border-amber-400 pl-3 py-1">
+                <span class="text-xs font-semibold text-slate-700">ou_mapping_repo</span>
+                <div class="text-xs text-slate-500">ORDER BY builder + <span class="text-red-500">buildWhere() closure</span></div>
+              </div>
+              <div class="border-l-4 border-red-400 pl-3 py-1">
+                <span class="text-xs font-semibold text-slate-700">org_rule_repo</span>
+                <div class="text-xs text-slate-500">ORDER BY builder + manual WHERE concat</div>
+              </div>
+              <div class="border-l-4 border-red-400 pl-3 py-1 mt-2">
+                <span class="text-xs text-red-500 font-semibold">4 different WHERE approaches</span>
+              </div>
+            </div>
+          </div>
+          <!-- After -->
+          <div class="space-y-2">
+            <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold">After</p>
+            <div class="diagram-box bg-slate-50 rounded border border-slate-200 p-4 flex flex-col gap-1 justify-center">
+              <div class="deep rounded p-3 text-center">
+                <span class="text-xs uppercase tracking-wider text-emerald-400 font-semibold">QueryBuilder</span>
+                <p class="text-xs text-slate-400 mt-1">Where() + OrderBy(allowedCols) + Pagination()</p>
+              </div>
+              <div class="border-l-4 border-emerald-400 pl-3 py-1">
+                <span class="text-xs font-semibold text-slate-700">application_repo</span>
+                <div class="text-xs text-slate-500">qb.OrderBy("name", "updated_at")</div>
+              </div>
+              <div class="border-l-4 border-emerald-400 pl-3 py-1">
+                <span class="text-xs font-semibold text-slate-700">permission_repo</span>
+                <div class="text-xs text-slate-500">qb.OrderBy("acl_key", "updated_at")</div>
+              </div>
+              <div class="border-l-4 border-emerald-400 pl-3 py-1">
+                <span class="text-xs font-semibold text-slate-700">role_repo</span>
+                <div class="text-xs text-slate-500">qb.OrderBy("name", "updated_at")</div>
+              </div>
+              <div class="border-l-4 border-emerald-400 pl-3 py-1">
+                <span class="text-xs font-semibold text-slate-700">assignment_repo</span>
+                <div class="text-xs text-slate-500">qb.OrderBy("user_name", "updated_at")</div>
+              </div>
+              <div class="border-l-4 border-emerald-400 pl-3 py-1">
+                <span class="text-xs font-semibold text-slate-700">ou_mapping_repo</span>
+                <div class="text-xs text-slate-500">qb.OrderBy("ou_name", "updated_at")</div>
+              </div>
+              <div class="border-l-4 border-emerald-400 pl-3 py-1">
+                <span class="text-xs font-semibold text-slate-700">org_rule_repo</span>
+                <div class="text-xs text-slate-500">qb.OrderBy("ou_name", "updated_at")</div>
+              </div>
+              <div class="border-l-4 border-emerald-400 pl-3 py-1 mt-2">
+                <span class="text-xs text-emerald-600 font-semibold">1 approach, column-set configuration</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Exact Duplication -->
+        <div class="bg-slate-50 rounded p-4 text-xs font-mono space-y-2">
+          <p class="text-xs font-sans font-semibold text-slate-500 mb-2">4 different WHERE approaches:</p>
+          <pre class="text-slate-700"><code>// Approach A: manual string concat (application, role, permission, org_rule)
+where := "WHERE 1=1"
+where += fmt.Sprintf(" AND status = $%d", len(args))
+
+// Approach B: closure-based nextArg (ou_app_mapping)
+nextArg := func(v any) string { args = append(args, v); return fmt.Sprintf("$%d", len(args)) }
+
+// Approach C: sqlx.Named (audit_log, end_user)
+args := map[string]any{"status": filter.Status}
+stmt, args, _ := sqlx.Named(query, args)
+
+// Approach D: inline (no helper)</code></pre>
+        </div>
+
+        <!-- Problem / Solution -->
+        <div class="space-y-2 text-sm">
+          <p><span class="font-semibold text-red-600">Problem:</span> No shared seam for query construction — each module builds its own WHERE/ORDER BY, creating N implementations of the same abstraction that will diverge further.</p>
+          <p><span class="font-semibold text-emerald-700">Solution:</span> A lightweight <code class="text-xs bg-slate-100 px-1 rounded">QueryBuilder</code> that handles column whitelisting, direction validation, and positional parameter binding. Reduces WHERE building to one approach.</p>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="badge-strong text-xs px-2 py-0.5 rounded">~-90 lines orderBy</span>
+          <span class="badge-strong text-xs px-2 py-0.5 rounded">1 WHERE approach</span>
+          <span class="badge-strong text-xs px-2 py-0.5 rounded">column whitelist safety</span>
+          <span class="badge-strong text-xs px-2 py-0.5 rounded">easier new repos</span>
+        </div>
+      </article>
+
+      <!-- ============================================================ -->
+      <!-- Candidate 3 — Handler Request Parsing                       -->
+      <!-- ============================================================ -->
+      <article class="bg-white rounded-lg border border-slate-200 p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-lg font-semibold">Handler Request Parsing Boilerplate</h2>
+          <span class="badge-worth text-xs px-2 py-0.5 rounded">Worth Exploring</span>
+        </div>
+
+        <!-- Files -->
+        <div class="text-xs font-mono text-slate-600">
+          <div>All 13 handler files in <span class="text-slate-400">internal/handler/</span></div>
+          <div class="mt-1 text-slate-500">26× ParseInt &nbsp;|&nbsp; 22× ShouldBindJSON &nbsp;|&nbsp; 10× getActor &nbsp;|&nbsp; 8× pagination params</div>
+        </div>
+
+        <!-- Before / After — Call-graph collapse -->
+        <div class="grid grid-cols-2 gap-4">
+          <!-- Before -->
+          <div class="space-y-2">
+            <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Before</p>
+            <div class="diagram-box bg-slate-50 rounded border border-slate-200 p-4 flex flex-col gap-1.5 justify-center">
+              <div class="bg-white rounded border border-slate-200 p-2 text-xs space-y-1">
+                <span class="font-semibold text-slate-700">ApplicationHandler.Create</span>
+                <div class="text-red-400">id, err := strconv.ParseInt(c.Param(...))</div>
+                <div class="text-red-400">var input domain.X; c.ShouldBindJSON(&input)</div>
+                <div class="text-red-400">actor, ok := getActor(c)</div>
+                <div class="text-red-400">page, _ := strconv.Atoi(c.DefaultQuery(...))</div>
+                <div class="text-slate-400">uc.Create(ctx, ...)</div>
+              </div>
+              <div class="bg-white rounded border border-slate-200 p-2 text-xs space-y-1">
+                <span class="font-semibold text-slate-700">RoleHandler.Update</span>
+                <div class="text-red-400">id, err := strconv.ParseInt(c.Param(...))</div>
+                <div class="text-red-400">var input domain.X; c.ShouldBindJSON(&input)</div>
+                <div class="text-red-400">actor, ok := getActor(c)</div>
+                <div class="text-slate-400">uc.Update(ctx, ...)</div>
+              </div>
+              <div class="bg-white rounded border border-slate-200 p-2 text-xs space-y-1">
+                <span class="font-semibold text-slate-700">AssignmentHandler.List</span>
+                <div class="text-red-400">strconv.Atoi(page) / strconv.Atoi(pageSize)</div>
+                <div class="text-red-400">actor, ok := getActor(c)</div>
+                <div class="text-red-400">if raw := c.Query("role_id"); ...</div>
+                <div class="text-slate-400">uc.List(ctx, filter)</div>
+              </div>
+              <p class="text-xs text-red-400 text-center">×13 handlers, ~10 lines preamble each</p>
+            </div>
+          </div>
+          <!-- After -->
+          <div class="space-y-2">
+            <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold">After</p>
+            <div class="diagram-box bg-slate-50 rounded border border-slate-200 p-4 flex flex-col gap-1.5 justify-center">
+              <div class="deep rounded p-3 text-center space-y-1">
+                <span class="text-xs uppercase tracking-wider text-emerald-400 font-semibold">ParseID / Bind[T] / MustActor</span>
+                <p class="text-xs text-slate-400">validated parsing with auto error response</p>
+              </div>
+              <div class="bg-white rounded border border-emerald-200 p-2 text-xs space-y-1">
+                <span class="font-semibold text-slate-700">ApplicationHandler.Create</span>
+                <div class="text-emerald-600">input := handler.Bind[CreateInput](c)</div>
+                <div class="text-emerald-600">actor := handler.MustActor(c)</div>
+                <div class="text-slate-400">uc.Create(ctx, input, actor)</div>
+              </div>
+              <div class="bg-white rounded border border-emerald-200 p-2 text-xs space-y-1">
+                <span class="font-semibold text-slate-700">RoleHandler.Update</span>
+                <div class="text-emerald-600">id := handler.ParseID(c, "roleID")</div>
+                <div class="text-emerald-600">input := handler.Bind[UpdateInput](c)</div>
+                <div class="text-emerald-600">actor := handler.MustActor(c)</div>
+                <div class="text-slate-400">uc.Update(ctx, id, input, actor)</div>
+              </div>
+              <p class="text-xs text-emerald-600 text-center">2-3 lines preamble, same safety</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Problem / Solution -->
+        <div class="space-y-2 text-sm">
+          <p><span class="font-semibold text-red-600">Problem:</span> Shallow handler methods spend most of their surface on HTTP mechanics rather than orchestrating usecases, reducing locality for maintainers who must parse boilerplate to reach the meaningful logic.</p>
+          <p><span class="font-semibold text-emerald-700">Solution:</span> Extract <code class="text-xs bg-slate-100 px-1 rounded">ParseID(c, param)</code>, <code class="text-xs bg-slate-100 px-1 rounded">Bind[T](c)</code>, and <code class="text-xs bg-slate-100 px-1 rounded">MustActor(c)</code> helpers that auto-respond with errors, cutting each method's preamble from ~10 lines to ~3.</p>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="badge-strong text-xs px-2 py-0.5 rounded">~-80 lines boilerplate</span>
+          <span class="badge-strong text-xs px-2 py-0.5 rounded">handler methods focus on orchestration</span>
+          <span class="badge-strong text-xs px-2 py-0.5 rounded">consistent error responses</span>
+          <span class="badge-strong text-xs px-2 py-0.5 rounded">generic type safety</span>
+        </div>
+      </article>
+
+      <!-- ============================================================ -->
+      <!-- Candidate 4 — isUniqueViolation Helper Location             -->
+      <!-- ============================================================ -->
+      <article class="bg-white rounded-lg border border-slate-200 p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-lg font-semibold">isUniqueViolation Helper Location</h2>
+          <span class="badge-spec text-xs px-2 py-0.5 rounded">Speculative</span>
+        </div>
+
+        <!-- Files -->
+        <div class="text-xs font-mono text-slate-600 space-y-0.5">
+          <div>internal/repository/application_repository.go &nbsp;<span class="text-red-400">defines isUniqueViolation()</span></div>
+          <div>internal/repository/permission_repository.go &nbsp;<span class="text-slate-400">uses it</span></div>
+          <div>internal/repository/role_repository.go &nbsp;<span class="text-slate-400">uses it</span></div>
+          <div>internal/repository/assignment_repository.go &nbsp;<span class="text-slate-400">uses it</span></div>
+          <div>internal/repository/org_rule_repository.go &nbsp;<span class="text-slate-400">uses it</span></div>
+          <div>internal/repository/ou_app_mapping_repository.go &nbsp;<span class="text-slate-400">uses it</span></div>
+          <div>internal/repository/pc_admin_repository.go &nbsp;<span class="text-slate-400">uses it</span></div>
+        </div>
+
+        <!-- Before / After — Mermaid flowchart -->
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Before</p>
+            <div class="diagram-box mermaid-wrap bg-slate-50 rounded border border-slate-200 p-2">
+              <pre class="mermaid">
+graph LR
+  P[permission_repo] --> A[application_repo]
+  R[role_repo] --> A
+  AS[assignment_repo] --> A
+  OR[org_rule_repo] --> A
+  OU[ou_mapping_repo] --> A
+  PC[pc_admin_repo] --> A
+  A -- "defines isUniqueViolation" --> A
+              </pre>
+            </div>
+          </div>
+          <div class="space-y-2">
+            <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold">After</p>
+            <div class="diagram-box mermaid-wrap bg-slate-50 rounded border border-slate-200 p-2">
+              <pre class="mermaid">
+graph LR
+  A[application_repo] --> H[helpers.go]
+  P[permission_repo] --> H
+  R[role_repo] --> H
+  AS[assignment_repo] --> H
+  OR[org_rule_repo] --> H
+  OU[ou_mapping_repo] --> H
+  PC[pc_admin_repo] --> H
+  H -- "isUniqueViolation" --> H
+              </pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Problem / Solution -->
+        <div class="space-y-2 text-sm">
+          <p><span class="font-semibold text-red-600">Problem:</span> Poor locality — a shared adapter lives inside one module's implementation file, making it non-obvious where to find or modify it for the 6 other modules that depend on it.</p>
+          <p><span class="font-semibold text-emerald-700">Solution:</span> Move <code class="text-xs bg-slate-100 px-1 rounded">isUniqueViolation()</code> to <code class="text-xs bg-slate-100 px-1 rounded">internal/repository/helpers.go</code>. Zero behavior change, pure locality improvement.</p>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="badge-strong text-xs px-2 py-0.5 rounded">obvious file location</span>
+          <span class="badge-strong text-xs px-2 py-0.5 rounded">no hidden dependencies</span>
+          <span class="badge-strong text-xs px-2 py-0.5 rounded">5-minute fix</span>
+        </div>
+      </article>
+
+      <!-- ============================================================ -->
+      <!-- Candidate 5 — Dual Authorization Middleware                 -->
+      <!-- ============================================================ -->
+      <article class="bg-white rounded-lg border border-slate-200 p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-lg font-semibold">Dual Authorization Middleware</h2>
+          <span class="badge-spec text-xs px-2 py-0.5 rounded">Speculative</span>
+        </div>
+
+        <!-- Files -->
+        <div class="text-xs font-mono text-slate-600 space-y-0.5">
+          <div>internal/middleware/permission.go &nbsp;<span class="text-red-400">34 lines — RequirePermission() — JWT role-based</span></div>
+          <div>internal/middleware/pc_permission.go &nbsp;<span class="text-emerald-600">116 lines — PCPermission.Require() — DB-backed</span></div>
+        </div>
+
+        <!-- Before / After — Mermaid flowchart -->
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Before</p>
+            <div class="diagram-box mermaid-wrap bg-slate-50 rounded border border-slate-200 p-2">
+              <pre class="mermaid">
+graph TD
+  subgraph "Two parallel authz paths"
+    JWT[RequirePermission] -- "checks JWT roles claim" --> F1{Route?}
+    DB[PCPermission.Require] -- "checks DB pc_permissions" --> F2{Route?}
+  end
+  F1 -- "unused" --> X[No route registered]
+  F2 -- "all /api/v1 routes" --> OK[Authorized]
+  style X fill:#fef2f2,stroke:#dc2626
+  style OK fill:#f0fdf4,stroke:#059669
+              </pre>
+            </div>
+          </div>
+          <div class="space-y-2">
+            <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold">After</p>
+            <div class="diagram-box mermaid-wrap bg-slate-50 rounded border border-slate-200 p-2">
+              <pre class="mermaid">
+graph TD
+  subgraph "Single authz path"
+    MW[PCPermission.Require] -- "DB-backed check" --> ALL[All /api/v1 routes]
+  end
+  DEL[permission.go] -- "deleted" --> GONE[Removed]
+  style MW fill:#f0fdf4,stroke:#059669
+  style GONE fill:#f1f5f9,stroke:#94a3b8
+              </pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Problem / Solution -->
+        <div class="space-y-2 text-sm">
+          <p><span class="font-semibold text-red-600">Problem:</span> Two adapters at the same seam with different semantics — <code class="text-xs bg-slate-100 px-1 rounded">RequirePermission()</code> is defined but unused by any route, creating dead code and a leaky abstraction that misleads developers about which authz path to use.</p>
+          <p><span class="font-semibold text-emerald-700">Solution:</span> Delete <code class="text-xs bg-slate-100 px-1 rounded">permission.go</code> — <code class="text-xs bg-slate-100 px-1 rounded">PCPermission</code> already covers all routes. Verified: zero references in <code class="text-xs bg-slate-100 px-1 rounded">router.go</code>.</p>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="badge-strong text-xs px-2 py-0.5 rounded">dead code removed</span>
+          <span class="badge-strong text-xs px-2 py-0.5 rounded">single authz mental model</span>
+          <span class="badge-strong text-xs px-2 py-0.5 rounded">no more "which one?" confusion</span>
+        </div>
+      </article>
+
+      <!-- ============================================================ -->
+      <!-- Top Recommendation                                           -->
+      <!-- ============================================================ -->
+      <section class="bg-white rounded-lg border-2 border-emerald-200 p-6 space-y-4">
+        <h2 class="text-lg font-semibold text-emerald-800">Top Recommendation</h2>
+
+        <div class="space-y-3 text-sm">
+          <p><span class="font-semibold">Start with Candidate 4</span> (isUniqueViolation helper relocation) — it's a 5-minute fix with zero risk that immediately improves locality.</p>
+
+          <p><span class="font-semibold">Then Candidate 5</span> (delete unused permission.go) — another 5-minute fix. Removes dead code and eliminates confusion about which authz path to use.</p>
+
+          <p><span class="font-semibold">Then Candidate 1</span> (handler error mapping) — highest impact (~120 lines removed, single error seam). This is the Strong candidate and creates the deepest module improvement. Do it before adding new handler modules.</p>
+
+          <p><span class="font-semibold">Then Candidate 2</span> (query builder) — addresses the most dangerous long-term risk (4 diverging WHERE approaches). Worth doing before adding new repositories.</p>
+
+          <p class="text-slate-500">Candidate 3 (request parsing) can wait until the next time handlers are modified, as it's a convenience improvement rather than a correctness risk.</p>
+        </div>
+
+        <!-- Order summary -->
+        <div class="bg-emerald-50 rounded p-3">
+          <p class="text-xs font-semibold text-emerald-800 mb-2">Recommended order:</p>
+          <ol class="text-xs text-emerald-700 space-y-1 list-decimal list-inside">
+            <li><span class="badge-spec text-xs px-1.5 py-0.5 rounded">Spec</span> Move isUniqueViolation → helpers.go</li>
+            <li><span class="badge-spec text-xs px-1.5 py-0.5 rounded">Spec</span> Delete unused permission.go</li>
+            <li><span class="badge-strong text-xs px-1.5 py-0.5 rounded">Strong</span> Extract shared HandleError + ErrorMap</li>
+            <li><span class="badge-worth text-xs px-1.5 py-0.5 rounded">Worth</span> Introduce QueryBuilder for WHERE/ORDER BY</li>
+            <li><span class="badge-worth text-xs px-1.5 py-0.5 rounded">Worth</span> Extract ParseID / Bind[T] / MustActor helpers</li>
+          </ol>
+        </div>
+      </section>
+
+    </main>
+  </body>
+</html>

@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Architecture review — permission-center-api04</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+    </script>
+    <style>
+      .seam { stroke-dasharray: 4 4; }
+      .leak { stroke: #dc2626; }
+      .deep { background: linear-gradient(135deg, #0f172a, #1e293b); }
+      .badge-strong { background: #059669; color: white; }
+      .badge-worth { background: #d97706; color: white; }
+      .badge-spec { background: #64748b; color: white; }
+      .diagram-box {
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 12px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+        overflow: auto;
+        min-height: 320px;
+      }
+      .diagram-before { background: #fef2f2; }
+      .diagram-after { background: #f0fdf4; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+      <!-- Header -->
+      <header class="space-y-4">
+        <div class="flex items-baseline justify-between">
+          <h1 class="text-3xl font-bold tracking-tight">Architecture Review</h1>
+          <span class="text-sm text-slate-500">2026-05-25</span>
+        </div>
+        <p class="text-lg text-slate-600">permission-center-api04</p>
+        <p class="text-sm text-slate-500">Go 1.24 + Gin + GORM + PostgreSQL + Azure AD JWT &middot; ~35,000 LOC &middot; 142 Go files &middot; RBAC + ABAC permission management</p>
+
+        <!-- Legend -->
+        <div class="flex gap-3 pt-2 text-xs">
+          <span class="badge-strong px-2 py-0.5 rounded">Strong</span>
+          <span class="badge-worth px-2 py-0.5 rounded">Worth Exploring</span>
+          <span class="badge-spec px-2 py-0.5 rounded">Speculative</span>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-4 gap-4 pt-4 text-center">
+          <div class="bg-white rounded-lg border p-3">
+            <div class="text-2xl font-bold text-emerald-700">14</div>
+            <div class="text-xs text-slate-500">handleError copies</div>
+          </div>
+          <div class="bg-white rounded-lg border p-3">
+            <div class="text-2xl font-bold text-emerald-700">24</div>
+            <div class="text-xs text-slate-500">auth guard call sites</div>
+          </div>
+          <div class="bg-white rounded-lg border p-3">
+            <div class="text-2xl font-bold text-emerald-700">~280</div>
+            <div class="text-xs text-slate-500">removable lines</div>
+          </div>
+          <div class="bg-white rounded-lg border p-3">
+            <div class="text-2xl font-bold text-emerald-700">6</div>
+            <div class="text-xs text-slate-500">candidates</div>
+          </div>
+        </div>
+      </header>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 1: Consolidate Error Mapping -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">1. Consolidate Error Mapping</h2>
+          <span class="badge-strong px-2 py-0.5 rounded text-xs font-medium">Strong</span>
+        </div>
+
+        <!-- Files -->
+        <div class="text-xs font-mono text-slate-600 leading-relaxed space-y-0.5">
+          <div>internal/handler/role_handler.go <span class="text-slate-400">(302 lines)</span></div>
+          <div>internal/handler/application_handler.go <span class="text-slate-400">(234 lines)</span></div>
+          <div>internal/handler/permission_handler.go <span class="text-slate-400">(204 lines)</span></div>
+          <div>internal/handler/ou_handler.go <span class="text-slate-400">(316 lines)</span></div>
+          <div>internal/handler/abac_assignment_handler.go <span class="text-slate-400">(201 lines)</span></div>
+          <div>internal/handler/manual_assignment_handler.go <span class="text-slate-400">(174 lines)</span></div>
+          <div>internal/handler/abac_delegation_handler.go <span class="text-slate-400">(109 lines)</span></div>
+          <div>internal/handler/abac_master_handler.go <span class="text-slate-400">(140 lines)</span></div>
+          <div>internal/handler/role_permission_handler.go <span class="text-slate-400">(115 lines)</span></div>
+          <div>internal/handler/role_permission_preset_handler.go <span class="text-slate-400">(147 lines)</span></div>
+          <div>internal/handler/manage_user_handler.go <span class="text-slate-400">(362 lines)</span></div>
+          <div>internal/handler/sync_handler.go <span class="text-slate-400">(93 lines)</span></div>
+          <div>internal/handler/activity_handler.go <span class="text-slate-400">(73 lines)</span></div>
+          <div>internal/handler/overview_handler.go <span class="text-slate-400">(50 lines)</span></div>
+        </div>
+
+        <!-- Exact duplication evidence -->
+        <div class="grid grid-cols-2 gap-4 text-[10px] font-mono bg-slate-50 rounded-lg p-3">
+          <div>
+            <div class="text-red-600 font-medium mb-1">role_handler.go:229-253</div>
+            <pre class="text-[9px] leading-tight text-slate-700 whitespace-pre-wrap">case errors.Is(err, errs.ErrNotFound):
+  c.JSON(404, ...{Message: err.Error(), Code: "NOT_FOUND"})
+case errors.Is(err, errs.ErrConflictBoundUsers):
+  c.JSON(409, errorResponse("ROLE_HAS_ASSIGNMENTS", ...))
+case errors.Is(err, errs.ErrConflictDuplicateCode):
+  c.JSON(409, errorResponse("ROLE_DUPLICATE_CODE", ...))
+case errors.Is(err, errs.ErrForbidden):
+  if strings.Contains(err.Error(), "access_model") {
+    c.JSON(403, ...{Code: "APP_ACCESS_MODEL_MISMATCH"})
+  }
+default:
+  c.JSON(500, ...{Code: "INTERNAL_ERROR"})</pre>
+          </div>
+          <div>
+            <div class="text-red-600 font-medium mb-1">permission_handler.go:180-203</div>
+            <pre class="text-[9px] leading-tight text-slate-700 whitespace-pre-wrap">case errors.Is(err, errs.ErrNotFound):
+  c.JSON(404, ...{Message: err.Error(), Code: "NOT_FOUND"})
+case errors.Is(err, errs.ErrPermissionInUse):
+  c.JSON(409, ...{Code: "PERMISSION_IN_USE"})
+case errors.Is(err, errs.ErrPermissionDuplicateCode):
+  c.JSON(409, ...{Code: "PERMISSION_DUPLICATE_CODE"})
+case errors.Is(err, errs.ErrForbidden):
+  if strings.Contains(err.Error(), "access_model") {
+    c.JSON(403, ...{Code: "APP_ACCESS_MODEL_MISMATCH"})
+  }
+default:
+  c.JSON(500, ...{Code: "INTERNAL_ERROR"})</pre>
+          </div>
+        </div>
+
+        <!-- Diagrams: Mermaid flowchart -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-red-600 font-medium mb-2">Before</div>
+            <div class="diagram-box diagram-before">
+              <pre class="mermaid">
+graph LR
+  RH[RoleHandler] --> RH_E[handleError v1]
+  PH[PermHandler] --> PH_E[handleError v2]
+  AH[AppHandler] --> AH_E[handleError v3]
+  OH[OUHandler] --> OH_E[handleError v4]
+  MH[ManageHandler] --> MH_E[handleError v5]
+  AB[AbacHandler] --> AB_E[handleError v6]
+  DL[DelegationHandler] --> DL_E[handleError v7]
+  MT[MasterHandler] --> MT_E[handleError v8]
+  PR[PresetHandler] --> PR_E[handleError v9]
+  SY[SyncHandler] --> SY_E[handleError v10]
+  AC[ActivityHandler] --> AC_E[handleError v11]
+  OV[OverviewHandler] --> OV_E[handleError v12]
+  RP[RolePermHandler] --> RP_E[handleError v13]
+  MN[ManualHandler] --> MN_E[handleError v14]
+              </pre>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-emerald-600 font-medium mb-2">After</div>
+            <div class="diagram-box diagram-after">
+              <pre class="mermaid">
+graph LR
+  RH[RoleHandler] --> HE[handlerutil.HandleError]
+  PH[PermHandler] --> HE
+  AH[AppHandler] --> HE
+  OH[OUHandler] --> HE
+  MH[ManageHandler] --> HE
+  AB[AbacHandler] --> HE
+  DL[DelegationHandler] --> HE
+  MT[MasterHandler] --> HE
+  PR[PresetHandler] --> HE
+  SY[SyncHandler] --> HE
+  AC[ActivityHandler] --> HE
+  OV[OverviewHandler] --> HE
+  RP[RolePermHandler] --> HE
+  MN[ManualHandler] --> HE
+              </pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Problem / Solution -->
+        <div class="space-y-2 text-sm">
+          <p><span class="font-semibold text-red-700">Problem:</span> Every handler module re-declares an identical error-to-HTTP switch statement, scattering the same mapping implementation across 14 files with no leverage &mdash; a new error type requires editing all 14.</p>
+          <p><span class="font-semibold text-emerald-700">Solution:</span> Extract a single <code class="bg-slate-100 px-1 rounded">handlerutil.HandleError(c, err)</code> function with a per-handler override option for domain-specific error codes, so all 14 handlers call one canonical module.</p>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">14 copies reduced to 1</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">new error: edit 1 place</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">consistent HTTP mapping</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">~280 lines removed</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">testable error mapping</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 2: Extract Handler Helpers -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">2. Extract Handler Helpers</h2>
+          <span class="badge-strong px-2 py-0.5 rounded text-xs font-medium">Strong</span>
+        </div>
+
+        <!-- Files -->
+        <div class="text-xs font-mono text-slate-600 leading-relaxed space-y-0.5">
+          <div>internal/handler/role_handler.go:265-301 <span class="text-slate-400">(parseUintParam, actorIDFromContext, actorNameFromContext)</span></div>
+          <div>internal/handler/application_handler.go:212-234 <span class="text-slate-400">(isSuperAdmin, isAdmin)</span></div>
+          <div>internal/handler/ou_handler.go:275-291 <span class="text-slate-400">(hasPermissionCode)</span></div>
+          <div>internal/handler/abac_master_handler.go:133-140 <span class="text-slate-400">(parseUint variant)</span></div>
+          <div>internal/handler/user_handler.go:213 <span class="text-slate-400">(derefStrPtr)</span></div>
+          <div class="text-slate-400 pl-4">All 16 handler files use these helpers &mdash; 53+ call sites total</div>
+        </div>
+
+        <!-- Diagrams: Mass diagram -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-red-600 font-medium mb-2">Before</div>
+            <div class="diagram-box diagram-before space-y-2">
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">5 helpers redeclared per handler</div>
+              <div class="grid grid-cols-2 gap-1.5">
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="text-[9px] font-medium mb-1">RoleHandler</div>
+                  <div class="bg-red-50 rounded text-[8px] py-0.5 mb-0.5">parseUintParam</div>
+                  <div class="bg-red-50 rounded text-[8px] py-0.5 mb-0.5">actorIDFromContext</div>
+                  <div class="bg-red-50 rounded text-[8px] py-0.5 mb-0.5">actorNameFromContext</div>
+                  <div class="bg-red-100 rounded text-[8px] py-0.5">+ business logic</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="text-[9px] font-medium mb-1">AppHandler</div>
+                  <div class="bg-red-50 rounded text-[8px] py-0.5 mb-0.5">isSuperAdmin</div>
+                  <div class="bg-red-50 rounded text-[8px] py-0.5 mb-0.5">isAdmin</div>
+                  <div class="bg-red-50 rounded text-[8px] py-0.5 mb-0.5">parseUintParam</div>
+                  <div class="bg-red-100 rounded text-[8px] py-0.5">+ business logic</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="text-[9px] font-medium mb-1">OUHandler</div>
+                  <div class="bg-red-50 rounded text-[8px] py-0.5 mb-0.5">hasPermissionCode</div>
+                  <div class="bg-red-50 rounded text-[8px] py-0.5 mb-0.5">parseUintParam</div>
+                  <div class="bg-red-50 rounded text-[8px] py-0.5">actorID*</div>
+                  <div class="bg-red-100 rounded text-[8px] py-0.5">+ business logic</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="text-[9px] font-medium mb-1">AbacHandler</div>
+                  <div class="bg-red-50 rounded text-[8px] py-0.5 mb-0.5">parseUint variant</div>
+                  <div class="bg-red-50 rounded text-[8px] py-0.5 mb-0.5">isSuperAdmin</div>
+                  <div class="bg-red-50 rounded text-[8px] py-0.5">isAdmin</div>
+                  <div class="bg-red-100 rounded text-[8px] py-0.5">+ business logic</div>
+                </div>
+              </div>
+              <div class="text-[10px] text-red-400 text-center">53+ call sites, inconsistent naming</div>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-emerald-600 font-medium mb-2">After</div>
+            <div class="diagram-box diagram-after space-y-2">
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">One shared handlerutil package</div>
+              <div class="border-2 border-emerald-400 rounded-lg p-3 mb-3">
+                <div class="text-xs uppercase tracking-wider text-emerald-700 font-medium mb-2">handlerutil</div>
+                <div class="bg-emerald-50 rounded text-[10px] py-0.5 px-2 mb-1">ParseUintParam(c, name)</div>
+                <div class="bg-emerald-50 rounded text-[10px] py-0.5 px-2 mb-1">ActorID(c) / ActorName(c)</div>
+                <div class="bg-emerald-50 rounded text-[10px] py-0.5 px-2 mb-1">IsSuperAdmin(c) / IsAdmin(c)</div>
+                <div class="bg-emerald-50 rounded text-[10px] py-0.5 px-2">HasPermissionCode(c, code)</div>
+              </div>
+              <div class="text-[10px] text-slate-400 mb-1">handlers import from one place</div>
+              <div class="grid grid-cols-4 gap-1">
+                <div class="border border-emerald-200 rounded p-1 text-center text-[8px]">Role</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[8px]">App</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[8px]">OU</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[8px]">Abac</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[8px]">Perm</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[8px]">Manual</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[8px]">Deleg</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[8px]">+9 more</div>
+              </div>
+              <div class="text-[10px] text-emerald-500 text-center">5 helpers defined once, 53 sites unified</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 text-sm">
+          <p><span class="font-semibold text-red-700">Problem:</span> Five helper functions are re-declared across handlers instead of living in a shared module, reducing locality and causing inconsistent naming (<code class="bg-slate-100 px-1 rounded">parseUint</code> vs <code class="bg-slate-100 px-1 rounded">parseUintParam</code>).</p>
+          <p><span class="font-semibold text-emerald-700">Solution:</span> Create an <code class="bg-slate-100 px-1 rounded">internal/handler/handlerutil</code> package exporting all five functions, replacing all 53+ call sites with imports from a single module.</p>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">5 helpers defined once</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">53 call sites unified</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">naming consistency</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">single place for security fixes</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">easier to mock in tests</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 3: Unify Auth Guards -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">3. Unify Auth Guards</h2>
+          <span class="badge-strong px-2 py-0.5 rounded text-xs font-medium">Strong</span>
+        </div>
+
+        <div class="text-xs font-mono text-slate-600 leading-relaxed space-y-0.5">
+          <div>internal/handler/application_handler.go:214-234 <span class="text-red-500">(isSuperAdmin with security bug)</span></div>
+          <div>internal/handler/abac_master_handler.go:46,67,98 <span class="text-slate-400">(guard call sites)</span></div>
+          <div>internal/handler/abac_assignment_handler.go:49,70,108,153 <span class="text-slate-400">(guard call sites)</span></div>
+          <div>internal/handler/user_handler.go:96,237 <span class="text-slate-400">(guard call sites)</span></div>
+          <div>internal/handler/ou_handler.go <span class="text-slate-400">(guard call sites)</span></div>
+          <div class="text-slate-400 pl-4">24 guard invocations across 8+ handler files</div>
+        </div>
+
+        <!-- Security bug evidence -->
+        <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-[10px] font-mono">
+          <div class="text-red-600 font-medium mb-1">Security bug &mdash; application_handler.go:214-222</div>
+          <pre class="text-[9px] leading-tight text-slate-700 whitespace-pre-wrap">func isSuperAdmin(c *gin.Context) bool {
+    v, exists := c.Get(middleware.ContextKeyIsSuperAdmin)
+    if !exists {
+        // Auth middleware not wired — allow through for POC.
+        return true   // &larr; BYPASS: allows ALL when key absent
+    }
+    isSA, ok := v.(bool)
+    return ok && isSA
+}</pre>
+        </div>
+
+        <!-- Diagrams: Cross-section -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-red-600 font-medium mb-2">Before</div>
+            <div class="diagram-box diagram-before">
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">Auth guards interleaved with business logic</div>
+              <div class="space-y-2">
+                <div class="border border-red-200 rounded p-2">
+                  <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">RoleHandler.Create</div>
+                  <div class="flex gap-1">
+                    <div class="bg-red-100 rounded px-1.5 py-0.5 text-[9px] border-l-2 border-red-400">isSuperAdmin check</div>
+                    <div class="bg-red-100 rounded px-1.5 py-0.5 text-[9px] border-l-2 border-red-400">isAdmin check</div>
+                    <div class="bg-slate-100 rounded px-1.5 py-0.5 text-[9px]">validate input</div>
+                    <div class="bg-slate-100 rounded px-1.5 py-0.5 text-[9px]">call service</div>
+                  </div>
+                </div>
+                <div class="border border-red-200 rounded p-2">
+                  <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">AppHandler.Update</div>
+                  <div class="flex gap-1">
+                    <div class="bg-red-100 rounded px-1.5 py-0.5 text-[9px] border-l-2 border-red-400">isSuperAdmin check</div>
+                    <div class="bg-red-100 rounded px-1.5 py-0.5 text-[9px] border-l-2 border-red-400">isAdmin check</div>
+                    <div class="bg-slate-100 rounded px-1.5 py-0.5 text-[9px]">validate input</div>
+                    <div class="bg-slate-100 rounded px-1.5 py-0.5 text-[9px]">call service</div>
+                  </div>
+                </div>
+                <div class="border border-red-200 rounded p-2">
+                  <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">AbacHandler.Delete</div>
+                  <div class="flex gap-1">
+                    <div class="bg-red-100 rounded px-1.5 py-0.5 text-[9px] border-l-2 border-red-400">isSuperAdmin check</div>
+                    <div class="bg-slate-100 rounded px-1.5 py-0.5 text-[9px]">validate input</div>
+                    <div class="bg-slate-100 rounded px-1.5 py-0.5 text-[9px]">call service</div>
+                  </div>
+                </div>
+                <div class="border border-red-200 rounded p-2">
+                  <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">OUHandler.List</div>
+                  <div class="flex gap-1">
+                    <div class="bg-red-100 rounded px-1.5 py-0.5 text-[9px] border-l-2 border-red-400">hasPermissionCode</div>
+                    <div class="bg-slate-100 rounded px-1.5 py-0.5 text-[9px]">validate input</div>
+                    <div class="bg-slate-100 rounded px-1.5 py-0.5 text-[9px]">call service</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-emerald-600 font-medium mb-2">After</div>
+            <div class="diagram-box diagram-after">
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">Auth middleware + clean business logic</div>
+              <div class="border-2 border-emerald-400 rounded-lg p-2 mb-3">
+                <div class="text-[10px] uppercase tracking-wider text-emerald-700 font-medium mb-1">RequireSuperAdmin middleware</div>
+                <div class="text-[9px] text-slate-500">Applied at route registration: rg.Use(RequireSuperAdmin)</div>
+                <div class="text-[9px] text-emerald-600">Fail-closed: false when key absent</div>
+              </div>
+              <div class="text-[10px] text-slate-400 mb-2">Handlers contain only business logic</div>
+              <div class="space-y-1.5">
+                <div class="border border-emerald-200 rounded p-1.5">
+                  <div class="text-[9px]"><span class="text-emerald-600">RoleHandler.Create</span> &rarr; validate &rarr; call service</div>
+                </div>
+                <div class="border border-emerald-200 rounded p-1.5">
+                  <div class="text-[9px]"><span class="text-emerald-600">AppHandler.Update</span> &rarr; validate &rarr; call service</div>
+                </div>
+                <div class="border border-emerald-200 rounded p-1.5">
+                  <div class="text-[9px]"><span class="text-emerald-600">AbacHandler.Delete</span> &rarr; validate &rarr; call service</div>
+                </div>
+                <div class="border border-emerald-200 rounded p-1.5">
+                  <div class="text-[9px]"><span class="text-emerald-600">OUHandler.List</span> &rarr; validate &rarr; call service</div>
+                </div>
+              </div>
+              <div class="text-[10px] text-emerald-500 text-center mt-2">24 inline guards → route-level middleware</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 text-sm">
+          <p><span class="font-semibold text-red-700">Problem:</span> Auth guard logic is interleaved with business logic at 24 call sites across handlers, and <code class="bg-slate-100 px-1 rounded">isSuperAdmin</code> returns true when the context key is absent &mdash; a security vulnerability that bypasses authorization when middleware is misconfigured.</p>
+          <p><span class="font-semibold text-emerald-700">Solution:</span> Extract centralized <code class="bg-slate-100 px-1 rounded">handlerutil.RequireSuperAdmin</code> and <code class="bg-slate-100 px-1 rounded">RequireAdmin</code> middleware that return false when the key is absent, and promote auth checks from inline handler code to Gin route-level middleware.</p>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">fix security bypass bug</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">24 guards centralized</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">fail-closed by default</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">audit: all auth in one place</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 4: Extract Repository Helpers -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">4. Extract Repository Helpers</h2>
+          <span class="badge-worth px-2 py-0.5 rounded text-xs font-medium">Worth Exploring</span>
+        </div>
+
+        <div class="text-xs font-mono text-slate-600 leading-relaxed space-y-0.5">
+          <div>internal/repository/role_repository.go:401-416 <span class="text-slate-400">(isDuplicateKeyError, escapeLike)</span></div>
+          <div>internal/repository/application_repository.go <span class="text-red-500">(isAppDuplicateKeyError &mdash; identical copy)</span></div>
+          <div class="text-slate-400 pl-4">11 calls to isDuplicateKeyError, 6 calls to escapeLike across 5 repos</div>
+        </div>
+
+        <!-- Diagrams: Mermaid flowchart -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-red-600 font-medium mb-2">Before</div>
+            <div class="diagram-box diagram-before">
+              <pre class="mermaid">
+graph TD
+  RR[role_repository.go] -->|defines| DKE[isDuplicateKeyError]
+  RR -->|defines| EL[escapeLike]
+  AR[application_repository.go] -->|defines own| ADKE[isAppDuplicateKeyError]
+  AR -->|calls| EL
+  OR[ou_repository.go] -->|calls| DKE
+  PR[permission_repository.go] -->|calls| DKE
+  PR -->|calls| EL
+  MR[manage_user_repository.go] -->|calls| DKE
+              </pre>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-emerald-600 font-medium mb-2">After</div>
+            <div class="diagram-box diagram-after">
+              <pre class="mermaid">
+graph TD
+  SH[repoutil.go] -->|defines| DKE[isDuplicateKeyError]
+  SH -->|defines| EL[escapeLike]
+  RR[role_repository.go] -->|imports| SH
+  AR[application_repository.go] -->|imports| SH
+  OR[ou_repository.go] -->|imports| SH
+  PR[permission_repository.go] -->|imports| SH
+  MR[manage_user_repository.go] -->|imports| SH
+              </pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 text-sm">
+          <p><span class="font-semibold text-red-700">Problem:</span> The repository layer has two identical duplicate-key detection functions living in different modules, and the <code class="bg-slate-100 px-1 rounded">escapeLike</code> helper is defined in one module but called from five others &mdash; a violation of locality at the repository seam.</p>
+          <p><span class="font-semibold text-emerald-700">Solution:</span> Move <code class="bg-slate-100 px-1 rounded">isDuplicateKeyError</code>, <code class="bg-slate-100 px-1 rounded">escapeLike</code> (and delete <code class="bg-slate-100 px-1 rounded">isAppDuplicateKeyError</code>) into a shared <code class="bg-slate-100 px-1 rounded">repoutil.go</code> file within the same package.</p>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">eliminate identical duplicate</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">single escapeLike definition</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">all repos import one place</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">~20 lines removed</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 5: Consolidate Service Response Mappers -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">5. Consolidate Service Response Mappers</h2>
+          <span class="badge-worth px-2 py-0.5 rounded text-xs font-medium">Worth Exploring</span>
+        </div>
+
+        <div class="text-xs font-mono text-slate-600 leading-relaxed space-y-0.5">
+          <div>internal/service/role_service.go:329 <span class="text-slate-400">(uintPtr(v uint) *uint)</span></div>
+          <div>internal/service/ou_service.go:411 <span class="text-red-500">(uintPtrOU(v uint) *uint &mdash; same logic, different name)</span></div>
+          <div>internal/handler/user_handler.go:213 <span class="text-slate-400">(derefStrPtr(s *string) string)</span></div>
+          <div>internal/service/role_service.go:313 <span class="text-slate-400">(toRoleResponse)</span></div>
+          <div>internal/service/permission_service.go:239 <span class="text-slate-400">(toPermissionResponse)</span></div>
+          <div>internal/service/application_service.go:219 <span class="text-slate-400">(toAppResponse)</span></div>
+          <div>internal/service/abac_delegation_service.go:113 <span class="text-slate-400">(toAbacDelegationItem)</span></div>
+          <div>internal/service/manual_assignment_service.go:222 <span class="text-slate-400">(toManualAssignmentResponse)</span></div>
+          <div>internal/service/role_permission_preset_service.go:182 <span class="text-slate-400">(toPresetResponse)</span></div>
+        </div>
+
+        <!-- Diagrams: Mass diagram -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-red-600 font-medium mb-2">Before</div>
+            <div class="diagram-box diagram-before space-y-2">
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">6 mappers + 3 pointer helpers scattered</div>
+              <div class="grid grid-cols-2 gap-1.5">
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="text-[9px] font-medium mb-0.5">role_service</div>
+                  <div class="bg-red-50 rounded text-[8px] py-0.5">toRoleResponse</div>
+                  <div class="bg-red-50 rounded text-[8px] py-0.5">uintPtr</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="text-[9px] font-medium mb-0.5">ou_service</div>
+                  <div class="bg-red-50 rounded text-[8px] py-0.5">uintPtrOU</div>
+                  <div class="bg-red-100 rounded text-[8px] py-0.5">duplicate!</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="text-[9px] font-medium mb-0.5">permission_service</div>
+                  <div class="bg-red-50 rounded text-[8px] py-0.5">toPermissionResponse</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="text-[9px] font-medium mb-0.5">app_service</div>
+                  <div class="bg-red-50 rounded text-[8px] py-0.5">toAppResponse</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="text-[9px] font-medium mb-0.5">abac_delegation</div>
+                  <div class="bg-red-50 rounded text-[8px] py-0.5">toAbacDelegationItem</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="text-[9px] font-medium mb-0.5">user_handler</div>
+                  <div class="bg-red-50 rounded text-[8px] py-0.5">derefStrPtr</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-emerald-600 font-medium mb-2">After</div>
+            <div class="diagram-box diagram-after space-y-2">
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">One mapper module + shared pointer helpers</div>
+              <div class="border-2 border-emerald-400 rounded-lg p-3 mb-3">
+                <div class="text-xs uppercase tracking-wider text-emerald-700 font-medium mb-1">internal/service/mappers.go</div>
+                <div class="bg-emerald-50 rounded text-[10px] py-0.5 px-2 mb-1">UintPtr(v) / DerefStrPtr(s)</div>
+                <div class="bg-emerald-50 rounded text-[10px] py-0.5 px-2 mb-1">ToRoleResponse(r, appCode, ...)</div>
+                <div class="bg-emerald-50 rounded text-[10px] py-0.5 px-2 mb-1">ToPermissionResponse(p, appCode)</div>
+                <div class="bg-emerald-50 rounded text-[10px] py-0.5 px-2">ToAppResponse / ToDelegationItem / ...</div>
+              </div>
+              <div class="text-[10px] text-slate-400 mb-1">services import from one place</div>
+              <div class="grid grid-cols-3 gap-1">
+                <div class="border border-emerald-200 rounded p-1 text-center text-[8px]">role_svc</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[8px]">perm_svc</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[8px]">app_svc</div>
+              </div>
+              <div class="text-[10px] text-emerald-500 text-center mt-2">uintPtr defined once, all mappers auditable</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 text-sm">
+          <p><span class="font-semibold text-red-700">Problem:</span> Six <code class="bg-slate-100 px-1 rounded">to*Response</code> mappers and two identical <code class="bg-slate-100 px-1 rounded">uintPtr</code> helpers are scattered per-service with no shared adapter, duplicating the pointer-wrapper pattern and making the model-to-DTO mapping surface harder to audit.</p>
+          <p><span class="font-semibold text-emerald-700">Solution:</span> Consolidate <code class="bg-slate-100 px-1 rounded">UintPtr</code>, <code class="bg-slate-100 px-1 rounded">DerefStrPtr</code>, and all <code class="bg-slate-100 px-1 rounded">to*Response</code> functions into a single <code class="bg-slate-100 px-1 rounded">internal/service/mappers.go</code> file so the mapping surface is visible in one place.</p>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">uintPtr defined once</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">all mappers auditable</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">new entity: add in one file</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">~50 lines removed</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 6: Structured Logging -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">6. Structured Logging</h2>
+          <span class="badge-spec px-2 py-0.5 rounded text-xs font-medium">Speculative</span>
+        </div>
+
+        <div class="text-xs font-mono text-slate-600 leading-relaxed space-y-0.5">
+          <div>internal/job/access_grant_status_job.go <span class="text-slate-400">(8 log.Printf with manual INFO/ERROR prefix)</span></div>
+          <div>internal/job/abac_sync_job.go <span class="text-slate-400">(3 log.Printf calls)</span></div>
+          <div>internal/service/permission_service.go:135,186,229 <span class="text-slate-400">(WARN prefix, audit failures)</span></div>
+          <div>internal/handler/role_handler.go:286,300 <span class="text-slate-400">(WARN prefix, missing context)</span></div>
+          <div>cmd/server/main.go <span class="text-slate-400">(startup/shutdown logging)</span></div>
+          <div>internal/middleware/auth_middleware.go <span class="text-slate-400">(fmt.Printf for JWKS errors)</span></div>
+          <div class="text-slate-400 pl-4">101 raw log.Printf / fmt.Printf calls across the entire codebase</div>
+        </div>
+
+        <!-- Diagrams: Cross-section -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-red-600 font-medium mb-2">Before</div>
+            <div class="diagram-box diagram-before">
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">Scattered raw printf across all layers</div>
+              <div class="space-y-1.5">
+                <div class="border-l-4 border-red-400 pl-3 py-1.5 bg-red-50 rounded-r">
+                  <div class="text-[10px] uppercase tracking-wider text-slate-500">handler layer</div>
+                  <div class="text-[10px]">log.Printf("WARN actorIDFromContext: ...")</div>
+                  <div class="text-[9px] text-red-500">no structured fields</div>
+                </div>
+                <div class="border-l-4 border-red-400 pl-3 py-1.5 bg-red-50 rounded-r">
+                  <div class="text-[10px] uppercase tracking-wider text-slate-500">service layer</div>
+                  <div class="text-[10px]">log.Printf("WARN permission.create audit ...")</div>
+                  <div class="text-[9px] text-red-500">manual INFO/WARN/ERROR prefix</div>
+                </div>
+                <div class="border-l-4 border-red-400 pl-3 py-1.5 bg-red-50 rounded-r">
+                  <div class="text-[10px] uppercase tracking-wider text-slate-500">job layer</div>
+                  <div class="text-[10px]">log.Printf("ERROR abac_sync_job: SyncAll failed")</div>
+                  <div class="text-[9px] text-red-500">no correlation IDs</div>
+                </div>
+                <div class="border-l-4 border-red-400 pl-3 py-1.5 bg-red-50 rounded-r">
+                  <div class="text-[10px] uppercase tracking-wider text-slate-500">middleware</div>
+                  <div class="text-[10px]">fmt.Printf("jwks: %s")</div>
+                  <div class="text-[9px] text-red-500">fmt.Printf, not even log.Printf!</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-emerald-600 font-medium mb-2">After</div>
+            <div class="diagram-box diagram-after">
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">Structured logger via log/slog</div>
+              <div class="border-2 border-emerald-400 rounded-lg p-3 mb-3">
+                <div class="text-xs uppercase tracking-wider text-emerald-700 font-medium mb-1">pkg/logger</div>
+                <div class="bg-emerald-50 rounded text-[10px] py-0.5 px-2 mb-1">logger.Info(ctx, "msg", "key", value)</div>
+                <div class="bg-emerald-50 rounded text-[10px] py-0.5 px-2 mb-1">logger.Warn(ctx, "audit failed", "id", id)</div>
+                <div class="bg-emerald-50 rounded text-[10px] py-0.5 px-2 mb-1">logger.Error(ctx, "sync failed", "err", err)</div>
+                <div class="bg-emerald-50 rounded text-[10px] py-0.5 px-2">request-scoped: correlation ID in ctx</div>
+              </div>
+              <div class="text-[10px] text-slate-400 mb-1">all layers use one module</div>
+              <div class="grid grid-cols-4 gap-1">
+                <div class="border border-emerald-200 rounded p-1 text-center text-[8px]">handler</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[8px]">service</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[8px]">repo</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[8px]">job</div>
+              </div>
+              <div class="text-[10px] text-emerald-500 text-center mt-2">101 printf → structured slog, zero new deps</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 text-sm">
+          <p><span class="font-semibold text-red-700">Problem:</span> The project uses raw <code class="bg-slate-100 px-1 rounded">log.Printf</code> with inconsistent manual prefixes across 101 call sites in all layers, providing no structured fields, no log levels, and no correlation IDs for tracing requests across the handler-service-repository depth.</p>
+          <p><span class="font-semibold text-emerald-700">Solution:</span> Introduce Go 1.24&rsquo;s <code class="bg-slate-100 px-1 rounded">log/slog</code> wrapped in a thin <code class="bg-slate-100 px-1 rounded">pkg/logger</code> module so all 101 sites emit structured, level-filtered log entries with request-scoped context.</p>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">101 sites: structured logging</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">log levels: DEBUG to ERROR</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">correlation IDs in context</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">zero new dependencies</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Top Recommendation -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <section class="bg-slate-900 text-white rounded-xl p-6 space-y-4">
+        <h2 class="text-xl font-semibold">Top Recommendation</h2>
+        <p class="text-slate-300">Start with <span class="text-emerald-400 font-semibold">Candidate 1: Consolidate Error Mapping</span>. It provides the highest leverage &mdash; touching all 14 handlers and removing ~280 lines of near-identical switch statements. All subsequent candidates become easier once the handler layer has a clean, thin error-mapping module.</p>
+
+        <div class="space-y-2">
+          <h3 class="text-sm uppercase tracking-wider text-slate-400">Recommended order</h3>
+          <div class="flex items-center gap-2 text-sm font-mono flex-wrap">
+            <span class="bg-emerald-700 px-2 py-0.5 rounded text-xs">1 Error Mapping</span>
+            <span class="text-slate-500">&rarr;</span>
+            <span class="bg-emerald-700 px-2 py-0.5 rounded text-xs">2 Handler Helpers</span>
+            <span class="text-slate-500">&rarr;</span>
+            <span class="bg-emerald-700 px-2 py-0.5 rounded text-xs">3 Auth Guards</span>
+            <span class="text-slate-500">|</span>
+            <span class="bg-amber-600 px-2 py-0.5 rounded text-xs">4 Repo Helpers</span>
+            <span class="text-slate-500">+</span>
+            <span class="bg-amber-600 px-2 py-0.5 rounded text-xs">5 Mappers</span>
+            <span class="text-slate-500">+</span>
+            <span class="bg-slate-600 px-2 py-0.5 rounded text-xs">6 Logging</span>
+          </div>
+        </div>
+
+        <div class="text-sm text-slate-400 space-y-1">
+          <p><span class="text-emerald-400">Candidates 1 + 2</span> can run in parallel &mdash; both touch handlers but different aspects.</p>
+          <p><span class="text-emerald-400">Candidate 3</span> depends on 2 (shared handlerutil package must exist first). Fixes a security bug.</p>
+          <p><span class="text-amber-400">Candidates 4 + 5</span> are independent of each other and of 1&ndash;3.</p>
+          <p><span class="text-slate-400">Candidate 6</span> is fully independent &mdash; safe to do anytime.</p>
+        </div>
+
+        <div class="pt-3 border-t border-slate-700">
+          <p class="text-sm text-slate-400">Estimated total impact: <span class="text-white font-semibold">~350 lines removed</span> + 1 security vulnerability closed across 16 handler files.</p>
+        </div>
+      </section>
+
+    </main>
+  </body>
+</html>

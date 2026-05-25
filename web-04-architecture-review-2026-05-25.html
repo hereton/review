@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Architecture review — permission-center-web04</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+    </script>
+    <style>
+      .seam { stroke-dasharray: 4 4; }
+      .leak { stroke: #dc2626; }
+      .deep { background: linear-gradient(135deg, #0f172a, #1e293b); }
+      .badge-strong { background: #059669; color: white; }
+      .badge-worth { background: #d97706; color: white; }
+      .badge-spec { background: #64748b; color: white; }
+      .diagram-box {
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 12px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+        overflow: auto;
+        min-height: 320px;
+      }
+      .diagram-before { background: #fef2f2; }
+      .diagram-after { background: #f0fdf4; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+      <!-- Header -->
+      <header class="space-y-4">
+        <div class="flex items-baseline justify-between">
+          <h1 class="text-3xl font-bold tracking-tight">Architecture Review</h1>
+          <span class="text-sm text-slate-500">2026-05-25</span>
+        </div>
+        <p class="text-lg text-slate-600">permission-center-web04</p>
+        <p class="text-sm text-slate-500">React 18 + Vite + TypeScript + Apollo UI &middot; ~24,000 LOC &middot; 95+ source files &middot; RBAC + ABAC permission management</p>
+
+        <!-- Legend -->
+        <div class="flex gap-3 pt-2 text-xs">
+          <span class="badge-strong px-2 py-0.5 rounded">Strong</span>
+          <span class="badge-worth px-2 py-0.5 rounded">Worth Exploring</span>
+          <span class="badge-spec px-2 py-0.5 rounded">Speculative</span>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-4 gap-4 pt-4 text-center">
+          <div class="bg-white rounded-lg border p-3">
+            <div class="text-2xl font-bold text-emerald-700">35</div>
+            <div class="text-xs text-slate-500">data hooks</div>
+          </div>
+          <div class="bg-white rounded-lg border p-3">
+            <div class="text-2xl font-bold text-emerald-700">6</div>
+            <div class="text-xs text-slate-500">files &gt; 500 lines</div>
+          </div>
+          <div class="bg-white rounded-lg border p-3">
+            <div class="text-2xl font-bold text-emerald-700">~4,000</div>
+            <div class="text-xs text-slate-500">removable lines</div>
+          </div>
+          <div class="bg-white rounded-lg border p-3">
+            <div class="text-2xl font-bold text-emerald-700">7</div>
+            <div class="text-xs text-slate-500">candidates</div>
+          </div>
+        </div>
+      </header>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 1: Data-Fetch Hook Factory -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">1. Data-Fetch Hook Factory</h2>
+          <span class="badge-strong px-2 py-0.5 rounded text-xs font-medium">Strong</span>
+        </div>
+
+        <!-- Files -->
+        <div class="text-xs font-mono text-slate-600 leading-relaxed space-y-0.5">
+          <div>src/hooks/useApplications.ts <span class="text-slate-400">(177 lines)</span></div>
+          <div>src/hooks/useRoles.ts <span class="text-slate-400">(188 lines)</span></div>
+          <div>src/hooks/usePermissions.ts <span class="text-slate-400">(262 lines)</span></div>
+          <div>src/hooks/useOUMappings.ts <span class="text-slate-400">(288 lines)</span></div>
+          <div>src/hooks/useManualAssignments.ts <span class="text-slate-400">(214 lines)</span></div>
+          <div>src/hooks/useEmployees.ts <span class="text-slate-400">(263 lines)</span></div>
+          <div>src/hooks/useDelegations.ts <span class="text-slate-400">(97 lines)</span></div>
+          <div>src/hooks/useAbacAssignments.ts <span class="text-slate-400">(137 lines)</span></div>
+          <div>src/hooks/useActivity.ts <span class="text-slate-400">(229 lines)</span></div>
+          <div>src/hooks/useOverview.ts <span class="text-slate-400">(117 lines)</span></div>
+          <div class="text-slate-400 pl-4">+ 25 more hooks with identical patterns</div>
+        </div>
+
+        <!-- Diagrams -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-red-600 font-medium mb-2">Before</div>
+            <div class="diagram-box diagram-before space-y-2">
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">10 identical thin modules</div>
+              <div class="grid grid-cols-2 gap-1.5">
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="bg-red-50 rounded text-[10px] py-0.5 mb-1">interface: loading/error/refetch</div>
+                  <div class="bg-red-100 rounded text-[10px] py-0.5">impl: cancelled/then/catch</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="bg-red-50 rounded text-[10px] py-0.5 mb-1">interface: loading/error/refetch</div>
+                  <div class="bg-red-100 rounded text-[10px] py-0.5">impl: cancelled/then/catch</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="bg-red-50 rounded text-[10px] py-0.5 mb-1">interface: loading/error/refetch</div>
+                  <div class="bg-red-100 rounded text-[10px] py-0.5">impl: cancelled/then/catch</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="bg-red-50 rounded text-[10px] py-0.5 mb-1">interface: loading/error/refetch</div>
+                  <div class="bg-red-100 rounded text-[10px] py-0.5">impl: cancelled/then/catch</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="bg-red-50 rounded text-[10px] py-0.5 mb-1">interface: loading/error/refetch</div>
+                  <div class="bg-red-100 rounded text-[10px] py-0.5">impl: cancelled/then/catch</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="bg-red-50 rounded text-[10px] py-0.5 mb-1">interface: loading/error/refetch</div>
+                  <div class="bg-red-100 rounded text-[10px] py-0.5">impl: cancelled/then/catch</div>
+                </div>
+              </div>
+              <div class="text-[10px] text-red-400 text-center">35 files × ~15 lines boilerplate each</div>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-emerald-600 font-medium mb-2">After</div>
+            <div class="diagram-box diagram-after space-y-2">
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">One deep module + thin configs</div>
+              <div class="border-2 border-emerald-400 rounded-lg p-3 mb-3">
+                <div class="text-xs uppercase tracking-wider text-emerald-700 font-medium mb-2">useQuery&lt;T&gt;</div>
+                <div class="bg-emerald-50 rounded text-[10px] py-1 px-2 mb-1">interface: { data, loading, error, refetch }</div>
+                <div class="bg-emerald-100 rounded text-[10px] py-1 px-2 mb-1">implementation: cancelled/then/catch/debounce</div>
+                <div class="bg-emerald-50 rounded text-[10px] py-1 px-2">seam: (endpoint, params, mapper)</div>
+              </div>
+              <div class="grid grid-cols-3 gap-1">
+                <div class="border border-emerald-200 rounded p-1 text-center text-[9px]">useApps</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[9px]">useRoles</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[9px]">usePerms</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[9px]">useOU</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[9px]">useManual</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[9px]">useEmp</div>
+              </div>
+              <div class="text-[10px] text-emerald-500 text-center">35 files → each ~5 lines config</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Problem / Solution -->
+        <div class="space-y-2 text-sm">
+          <p><span class="font-semibold text-red-700">Problem:</span> Every data-access module re-implements the same loading/error/tick/cancellation interface, scattering identical implementation across 35 files — a bug fix to the cancellation pattern must be applied 10+ times.</p>
+          <p><span class="font-semibold text-emerald-700">Solution:</span> Extract a <code class="bg-slate-100 px-1 rounded">useQuery&lt;T&gt;</code> generic hook (accepting endpoint, params, mapper) and a <code class="bg-slate-100 px-1 rounded">useMutation&lt;T&gt;</code> generic hook so each domain hook becomes a thin configuration call.</p>
+        </div>
+
+        <!-- Wins -->
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">~2,000 lines removed</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">one cancellation fix</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">consistent error handling</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">new hook: 5 lines</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">debounce built-in</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 2: Thai Date Formatter Consolidation -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">2. Thai Date Formatter Consolidation</h2>
+          <span class="badge-strong px-2 py-0.5 rounded text-xs font-medium">Strong</span>
+        </div>
+
+        <div class="text-xs font-mono text-slate-600 leading-relaxed space-y-0.5">
+          <div>src/lib/dateFormat.ts <span class="text-emerald-600">(canonical)</span> <span class="text-slate-400">(15 lines)</span></div>
+          <div>src/hooks/useOUMappings.ts:9-23 <span class="text-red-500">(duplicate)</span></div>
+          <div>src/hooks/useManualAssignments.ts:9-30 <span class="text-red-500">(duplicate)</span></div>
+          <div>src/pages/tabs/AutoTab.tsx:33-49 <span class="text-red-500">(inline duplicate)</span></div>
+        </div>
+
+        <!-- Diagrams: Cross-section -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-red-600 font-medium mb-2">Before</div>
+            <div class="diagram-box diagram-before">
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-3">Date formatting interleaved across layers</div>
+              <div class="space-y-1.5">
+                <div class="border-l-4 border-red-400 pl-3 py-1.5 bg-red-50 rounded-r">
+                  <div class="text-[10px] uppercase tracking-wider text-slate-500">lib/dateFormat.ts</div>
+                  <div class="text-[10px]">THAI_MONTHS_SHORT + isoDateTimeToThai()</div>
+                </div>
+                <div class="border-l-4 border-red-400 pl-3 py-1.5 bg-red-50 rounded-r">
+                  <div class="text-[10px] uppercase tracking-wider text-slate-500">hooks/useOUMappings.ts</div>
+                  <div class="text-[10px]">THAI_MONTHS_SHORT + isoDateTimeToThai() <span class="text-red-600">COPY</span></div>
+                </div>
+                <div class="border-l-4 border-red-400 pl-3 py-1.5 bg-red-50 rounded-r">
+                  <div class="text-[10px] uppercase tracking-wider text-slate-500">hooks/useManualAssignments.ts</div>
+                  <div class="text-[10px]">THAI_MONTHS_SHORT + isoDateTimeToThai() + isoDateToThai() <span class="text-red-600">COPY</span></div>
+                </div>
+                <div class="border-l-4 border-red-400 pl-3 py-1.5 bg-red-50 rounded-r">
+                  <div class="text-[10px] uppercase tracking-wider text-slate-500">pages/tabs/AutoTab.tsx</div>
+                  <div class="text-[10px]">THAI_MONTHS_SHORT + isoDateToThai() <span class="text-red-600">INLINE</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-emerald-600 font-medium mb-2">After</div>
+            <div class="diagram-box diagram-after">
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-3">Single isolated formatting module</div>
+              <div class="space-y-3">
+                <div class="border-l-4 border-emerald-500 pl-3 py-2 bg-emerald-50 rounded-r">
+                  <div class="text-[10px] uppercase tracking-wider text-emerald-700 font-medium">lib/dateFormat.ts</div>
+                  <div class="text-[10px]">THAI_MONTHS_SHORT</div>
+                  <div class="text-[10px]">isoDateTimeToThai()</div>
+                  <div class="text-[10px]">isoDateToThai()</div>
+                  <div class="text-[10px]">toRelativeDate()</div>
+                </div>
+                <div class="text-[10px] text-slate-400 pl-3">consumers import from one place ↓</div>
+                <div class="grid grid-cols-3 gap-1">
+                  <div class="border border-emerald-200 rounded p-1 text-center text-[9px]">useOUMappings</div>
+                  <div class="border border-emerald-200 rounded p-1 text-center text-[9px]">useManual</div>
+                  <div class="border border-emerald-200 rounded p-1 text-center text-[9px]">AutoTab</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 text-sm">
+          <p><span class="font-semibold text-red-700">Problem:</span> The Thai date formatting module has no adapter at its seam — callers bypass the canonical <code class="bg-slate-100 px-1 rounded">dateFormat.ts</code> interface and re-implement the same implementation inline, destroying locality.</p>
+          <p><span class="font-semibold text-emerald-700">Solution:</span> Expand dateFormat.ts to export all needed formatters, delete all inline copies, and update import sites.</p>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">single formatting module</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">consistent rendering</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">month array: defined once</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">~60 lines removed</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 3: Snake-to-Camel Mapper Generation -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">3. Snake-to-Camel Mapper Generation</h2>
+          <span class="badge-worth px-2 py-0.5 rounded text-xs font-medium">Worth Exploring</span>
+        </div>
+
+        <div class="text-xs font-mono text-slate-600 leading-relaxed space-y-0.5">
+          <div>src/hooks/useApplications.ts:26-43 <span class="text-slate-400">(fromApiResponse, 12 fields)</span></div>
+          <div>src/hooks/useRoles.ts:26-40 <span class="text-slate-400">(fromApiResponse, 10 fields)</span></div>
+          <div>src/hooks/usePermissions.ts:27-43 <span class="text-slate-400">(fromApiResponse, 14 fields)</span></div>
+          <div>src/hooks/useOUMappings.ts:50-66 <span class="text-slate-400">(fromApi, 12 fields)</span></div>
+          <div>src/hooks/useAbacAssignments.ts:11-39 <span class="text-slate-400">(fromApi, 21 fields)</span></div>
+          <div>src/hooks/useEmployees.ts:43-95 <span class="text-slate-400">(2 mappers, 30+ fields)</span></div>
+          <div class="text-slate-400 pl-4">+ 9 more hooks with fromApi() functions</div>
+        </div>
+
+        <!-- Diagrams: Call-graph collapse -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-red-600 font-medium mb-2">Before</div>
+            <div class="diagram-box diagram-before">
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">15 independent mapper modules</div>
+              <div class="grid grid-cols-3 gap-1.5">
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="text-[9px] font-medium">fromApiResponse</div>
+                  <div class="text-[8px] text-slate-400">Apps (12 fields)</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="text-[9px] font-medium">fromApiResponse</div>
+                  <div class="text-[8px] text-slate-400">Roles (10 fields)</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="text-[9px] font-medium">fromApiResponse</div>
+                  <div class="text-[8px] text-slate-400">Perms (14 fields)</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="text-[9px] font-medium">fromApi</div>
+                  <div class="text-[8px] text-slate-400">OU Map (12)</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="text-[9px] font-medium">fromApi</div>
+                  <div class="text-[8px] text-slate-400">Manual (9)</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="text-[9px] font-medium">mapDelegation</div>
+                  <div class="text-[8px] text-slate-400">Deleg (12)</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="text-[9px] font-medium">fromApi</div>
+                  <div class="text-[8px] text-slate-400">ABAC (21)</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="text-[9px] font-medium">mapEmployee</div>
+                  <div class="text-[8px] text-slate-400">Emp (18)</div>
+                </div>
+                <div class="border border-red-200 rounded p-1.5 text-center">
+                  <div class="text-[9px] font-medium">fromApi</div>
+                  <div class="text-[8px] text-slate-400">Activity</div>
+                </div>
+              </div>
+              <div class="text-[10px] text-red-400 text-center mt-2">Each: manual field-by-field mapping</div>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-emerald-600 font-medium mb-2">After</div>
+            <div class="diagram-box diagram-after">
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">Generic mapper + field configs</div>
+              <div class="border-2 border-emerald-400 rounded-lg p-3 mb-3">
+                <div class="text-xs uppercase tracking-wider text-emerald-700 font-medium mb-1">camelCaseKeys&lt;T&gt;</div>
+                <div class="text-[10px] text-slate-500">Auto snake_case → camelCase for all fields</div>
+                <div class="text-[10px] text-slate-500">Type-safe with generic T</div>
+              </div>
+              <div class="text-[10px] text-slate-400 mb-2">Hooks provide only field overrides ↓</div>
+              <div class="grid grid-cols-3 gap-1">
+                <div class="border border-emerald-200 rounded p-1 text-center text-[9px]">Apps: 3 overrides</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[9px]">Roles: 2 overrides</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[9px]">Perms: 4 overrides</div>
+              </div>
+              <div class="text-[10px] text-emerald-500 text-center mt-2">~400 lines → ~40 lines of field maps</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 text-sm">
+          <p><span class="font-semibold text-red-700">Problem:</span> Each data-access module defines its own snake_case to camelCase adapter at the API seam, producing 15 near-identical mappers with no leverage from a shared conversion mechanism.</p>
+          <p><span class="font-semibold text-emerald-700">Solution:</span> Create a generic <code class="bg-slate-100 px-1 rounded">camelCaseKeys</code> utility and a type-safe <code class="bg-slate-100 px-1 rounded">createMapper&lt;Api,Domain&gt;(overrides)</code> function, so each hook declares only the fields that differ from automatic conversion.</p>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">new mappers: field map only</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">~400 lines removed</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">type-safe mapping</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">consistent conversion</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 4: Pending-Applied Filter State Machine -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">4. Pending-Applied Filter State Machine</h2>
+          <span class="badge-worth px-2 py-0.5 rounded text-xs font-medium">Worth Exploring</span>
+        </div>
+
+        <div class="text-xs font-mono text-slate-600 leading-relaxed space-y-0.5">
+          <div>src/pages/EmployeesPage.tsx:366-500 <span class="text-slate-400">(8 draft + 8 applied states, ~130 lines)</span></div>
+          <div>src/pages/DelegationsPage.tsx:113-224 <span class="text-slate-400">(pending + applied, ~110 lines)</span></div>
+          <div>src/pages/tabs/AutoTab.tsx:200-324 <span class="text-slate-400">(6 filter pairs, ~120 lines)</span></div>
+          <div>src/pages/tabs/ManualTab.tsx <span class="text-slate-400">(filter split)</span></div>
+          <div>src/pages/tabs/AbacAssignmentsTab.tsx <span class="text-slate-400">(filter split)</span></div>
+          <div>src/pages/tabs/RolesTab.tsx <span class="text-slate-400">(filter split)</span></div>
+          <div>src/pages/tabs/PermissionsTab.tsx <span class="text-slate-400">(filter split)</span></div>
+          <div>src/pages/tabs/AbacDelegationTab.tsx <span class="text-slate-400">(filter split)</span></div>
+          <div>src/pages/tabs/AbacRolesTab.tsx <span class="text-slate-400">(filter split)</span></div>
+        </div>
+
+        <!-- Diagrams: Mermaid flowchart -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-red-600 font-medium mb-2">Before</div>
+            <div class="diagram-box diagram-before">
+              <pre class="mermaid">
+graph LR
+  subgraph EmployeesPage
+    ED[draft states x8] --> EA[applied states x8]
+    EA --> ES[doSearch]
+    EA --> EC[clearFilters]
+  end
+  subgraph AutoTab
+    AD[draft states x6] --> AA[applied states x6]
+    AA --> AS[applyFilters]
+    AA --> AC[clearFilters]
+  end
+  subgraph DelegationsPage
+    DD[draft states x4] --> DA[applied states x4]
+    DA --> DS[doSearch]
+    DA --> DC[clearFilters]
+  end
+              </pre>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-emerald-600 font-medium mb-2">After</div>
+            <div class="diagram-box diagram-after">
+              <pre class="mermaid">
+graph TD
+  FM[useFilterMachine T] --> |provides| D[draft]
+  FM --> |provides| A[applied]
+  FM --> |provides| AP[apply]
+  FM --> |provides| CL[clear]
+  FM --> |provides| HF[hasActiveFilters]
+  D -.-> |consumed by| P1[EmployeesPage]
+  D -.-> |consumed by| P2[AutoTab]
+  D -.-> |consumed by| P3[DelegationsPage]
+  D -.-> |consumed by| P4[6 more pages]
+              </pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 text-sm">
+          <p><span class="font-semibold text-red-700">Problem:</span> The draft-to-applied filter state machine is a shallow interface — the same split-state pattern is re-implemented at every page-level seam with identical depth but no shared module.</p>
+          <p><span class="font-semibold text-emerald-700">Solution:</span> Extract a <code class="bg-slate-100 px-1 rounded">useFilterMachine&lt;FilterShape&gt;</code> hook that manages draft/applied state, provides <code class="bg-slate-100 px-1 rounded">updateDraft</code>, <code class="bg-slate-100 px-1 rounded">apply</code>, <code class="bg-slate-100 px-1 rounded">clear</code>, <code class="bg-slate-100 px-1 rounded">hasActiveFilters</code> in one return.</p>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">one filter state machine</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">new page: 1 hook call</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">URL sync in one place</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">~800 lines removed</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">consistent UX</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 5: Modal State Machine -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">5. Modal State Machine</h2>
+          <span class="badge-worth px-2 py-0.5 rounded text-xs font-medium">Worth Exploring</span>
+        </div>
+
+        <div class="text-xs font-mono text-slate-600 leading-relaxed space-y-0.5">
+          <div>src/pages/DelegationsPage.tsx:125-147 <span class="text-slate-400">(modalOpen + editTarget + open/close)</span></div>
+          <div>src/pages/tabs/AutoTab.tsx:219-224 <span class="text-slate-400">(identical pattern)</span></div>
+          <div>src/pages/tabs/ManualTab.tsx:141-146 <span class="text-slate-400">(assign modal + delete modal)</span></div>
+          <div>src/pages/ApplicationsPage.tsx:74 <span class="text-slate-400">(editTarget pattern)</span></div>
+          <div>src/pages/tabs/RolesTab.tsx <span class="text-slate-400">(modal state)</span></div>
+          <div>src/pages/tabs/PermissionsTab.tsx <span class="text-slate-400">(modal state)</span></div>
+        </div>
+
+        <!-- Diagrams: Cross-section -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-red-600 font-medium mb-2">Before</div>
+            <div class="diagram-box diagram-before">
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">Modal state interleaved with page logic</div>
+              <div class="space-y-2">
+                <div class="border border-red-200 rounded p-2">
+                  <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">DelegationsPage</div>
+                  <div class="flex gap-1">
+                    <div class="bg-red-100 rounded px-1.5 py-0.5 text-[9px] border-l-2 border-red-400">modalOpen state</div>
+                    <div class="bg-red-100 rounded px-1.5 py-0.5 text-[9px] border-l-2 border-red-400">editTarget state</div>
+                    <div class="bg-red-100 rounded px-1.5 py-0.5 text-[9px] border-l-2 border-red-400">openCreate()</div>
+                    <div class="bg-red-100 rounded px-1.5 py-0.5 text-[9px] border-l-2 border-red-400">closeModal()</div>
+                  </div>
+                  <div class="bg-slate-50 rounded px-1.5 py-0.5 text-[9px] mt-1">page data + filters + rendering...</div>
+                </div>
+                <div class="border border-red-200 rounded p-2">
+                  <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">AutoTab</div>
+                  <div class="flex gap-1">
+                    <div class="bg-red-100 rounded px-1.5 py-0.5 text-[9px] border-l-2 border-red-400">modalOpen</div>
+                    <div class="bg-red-100 rounded px-1.5 py-0.5 text-[9px] border-l-2 border-red-400">editTarget</div>
+                    <div class="bg-red-100 rounded px-1.5 py-0.5 text-[9px] border-l-2 border-red-400">open/close</div>
+                  </div>
+                  <div class="bg-slate-50 rounded px-1.5 py-0.5 text-[9px] mt-1">page data + filters + rendering...</div>
+                </div>
+                <div class="border border-red-200 rounded p-2">
+                  <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">ManualTab</div>
+                  <div class="flex gap-1">
+                    <div class="bg-red-100 rounded px-1.5 py-0.5 text-[9px] border-l-2 border-red-400">assignModal</div>
+                    <div class="bg-red-100 rounded px-1.5 py-0.5 text-[9px] border-l-2 border-red-400">deleteModal</div>
+                    <div class="bg-red-100 rounded px-1.5 py-0.5 text-[9px] border-l-2 border-red-400">targets</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-emerald-600 font-medium mb-2">After</div>
+            <div class="diagram-box diagram-after">
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">Isolated modal state layer</div>
+              <div class="border-2 border-emerald-400 rounded-lg p-3 mb-3">
+                <div class="text-xs uppercase tracking-wider text-emerald-700 font-medium mb-1">useModal&lt;T&gt;</div>
+                <div class="text-[10px] text-slate-500">isOpen: boolean</div>
+                <div class="text-[10px] text-slate-500">mode: 'create' | 'edit' | 'delete' | 'closed'</div>
+                <div class="text-[10px] text-slate-500">target: T | null</div>
+                <div class="text-[10px] text-slate-500">openCreate() / openEdit(item) / close()</div>
+              </div>
+              <div class="text-[10px] text-slate-400 mb-2">Pages consume ↓</div>
+              <div class="grid grid-cols-3 gap-1">
+                <div class="border border-emerald-200 rounded p-1 text-center text-[9px]">Delegations</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[9px]">AutoTab</div>
+                <div class="border border-emerald-200 rounded p-1 text-center text-[9px]">ManualTab</div>
+              </div>
+              <div class="text-[10px] text-emerald-500 text-center mt-2">6+ pages × ~20 lines → 1 hook call each</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 text-sm">
+          <p><span class="font-semibold text-red-700">Problem:</span> The create/edit/close modal state machine is a shallow module duplicated at every page-level seam — each page re-declares the same three-state interface instead of getting leverage from a shared adapter.</p>
+          <p><span class="font-semibold text-emerald-700">Solution:</span> Extract a <code class="bg-slate-100 px-1 rounded">useModal&lt;T&gt;()</code> hook returning <code class="bg-slate-100 px-1 rounded">{ isOpen, mode, target, openCreate, openEdit, close }</code>.</p>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">one modal state machine</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">~200 lines removed</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">type-safe targets</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">delete modal included</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 6: Inline Combobox / Multi-Select Extraction -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">6. Inline Combobox / Multi-Select Extraction</h2>
+          <span class="badge-worth px-2 py-0.5 rounded text-xs font-medium">Worth Exploring</span>
+        </div>
+
+        <div class="text-xs font-mono text-slate-600 leading-relaxed space-y-0.5">
+          <div>src/components/modals/DelegationFormModal.tsx:92-341 <span class="text-slate-400">(RoleMultiSelect, 250 lines inline)</span></div>
+          <div>src/components/modals/DelegationFormModal.tsx:343-510 <span class="text-slate-400">(PairCombobox, 167 lines inline)</span></div>
+          <div>src/components/modals/OUMappingModal.tsx:82-518 <span class="text-slate-400">(inline role multi-select, ~150 lines)</span></div>
+          <div class="text-slate-400 pl-4">Existing: src/components/SearchableSelect.tsx (352 lines), MultiSearchableSelect.tsx (351 lines)</div>
+        </div>
+
+        <!-- Diagrams: Mass diagram -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-red-600 font-medium mb-2">Before</div>
+            <div class="diagram-box diagram-before">
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">3 near-identical combobox implementations</div>
+              <div class="space-y-2">
+                <div class="border border-red-300 rounded p-2">
+                  <div class="text-[10px] font-medium mb-1">DelegationFormModal::RoleMultiSelect</div>
+                  <div class="flex gap-1">
+                    <div class="bg-red-50 rounded px-1 py-0.5 text-[8px]">chip render</div>
+                    <div class="bg-red-50 rounded px-1 py-0.5 text-[8px]">dropdown</div>
+                    <div class="bg-red-50 rounded px-1 py-0.5 text-[8px]">search</div>
+                    <div class="bg-red-50 rounded px-1 py-0.5 text-[8px]">outside click</div>
+                    <div class="bg-red-50 rounded px-1 py-0.5 text-[8px]">keyboard</div>
+                  </div>
+                  <div class="text-[9px] text-red-500 mt-1">250 lines inline</div>
+                </div>
+                <div class="border border-red-300 rounded p-2">
+                  <div class="text-[10px] font-medium mb-1">DelegationFormModal::PairCombobox</div>
+                  <div class="flex gap-1">
+                    <div class="bg-red-50 rounded px-1 py-0.5 text-[8px]">search</div>
+                    <div class="bg-red-50 rounded px-1 py-0.5 text-[8px]">dropdown</div>
+                    <div class="bg-red-50 rounded px-1 py-0.5 text-[8px]">outside click</div>
+                    <div class="bg-red-50 rounded px-1 py-0.5 text-[8px]">keyboard</div>
+                  </div>
+                  <div class="text-[9px] text-red-500 mt-1">167 lines inline</div>
+                </div>
+                <div class="border border-red-300 rounded p-2">
+                  <div class="text-[10px] font-medium mb-1">OUMappingModal::RoleMultiSelect</div>
+                  <div class="flex gap-1">
+                    <div class="bg-red-50 rounded px-1 py-0.5 text-[8px]">chip render</div>
+                    <div class="bg-red-50 rounded px-1 py-0.5 text-[8px]">dropdown</div>
+                    <div class="bg-red-50 rounded px-1 py-0.5 text-[8px]">search</div>
+                    <div class="bg-red-50 rounded px-1 py-0.5 text-[8px]">outside click</div>
+                  </div>
+                  <div class="text-[9px] text-red-500 mt-1">~150 lines inline</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-emerald-600 font-medium mb-2">After</div>
+            <div class="diagram-box diagram-after">
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">Extended shared component</div>
+              <div class="border-2 border-emerald-400 rounded-lg p-3 mb-4">
+                <div class="text-xs uppercase tracking-wider text-emerald-700 font-medium mb-1">SearchableSelect + MultiSearchableSelect</div>
+                <div class="text-[10px] text-slate-500">interface: { value, onChange, options, searchable, multi }</div>
+                <div class="text-[10px] text-slate-500">implementation: outside click, keyboard, dropdown, chips</div>
+              </div>
+              <div class="text-[10px] text-slate-400 mb-2">Modals consume ↓</div>
+              <div class="grid grid-cols-2 gap-1.5">
+                <div class="border border-emerald-200 rounded p-1.5 text-center">
+                  <div class="text-[9px]">DelegationFormModal</div>
+                  <div class="text-[8px] text-emerald-500">uses MultiSearchableSelect</div>
+                </div>
+                <div class="border border-emerald-200 rounded p-1.5 text-center">
+                  <div class="text-[9px]">OUMappingModal</div>
+                  <div class="text-[8px] text-emerald-500">uses MultiSearchableSelect</div>
+                </div>
+              </div>
+              <div class="text-[10px] text-emerald-500 text-center mt-3">~400 inline lines → 2 import statements</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 text-sm">
+          <p><span class="font-semibold text-red-700">Problem:</span> Two modal modules each inline their own combobox and multi-select implementations at the component seam, duplicating the outside-click, dropdown, and chip interface that already exists in the project's shared component library.</p>
+          <p><span class="font-semibold text-emerald-700">Solution:</span> Extend the existing <code class="bg-slate-100 px-1 rounded">SearchableSelect</code> and <code class="bg-slate-100 px-1 rounded">MultiSearchableSelect</code> to support the chip-based multi-select pattern, then replace all inline implementations.</p>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">reuse existing components</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">~400 lines removed</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">consistent dropdown UX</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">one outside-click handler</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Candidate 7: Auth Guard Module -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <article class="bg-white rounded-xl border p-6 space-y-5">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold">7. Auth Guard Module</h2>
+          <span class="badge-spec px-2 py-0.5 rounded text-xs font-medium">Speculative</span>
+        </div>
+
+        <div class="text-xs font-mono text-slate-600 leading-relaxed space-y-0.5">
+          <div>src/lib/auth.ts <span class="text-slate-400">(44 lines — token get/set/clear, JWT decode)</span></div>
+          <div>src/lib/api.ts <span class="text-slate-400">(58 lines — uses DEV_TOKEN, NOT getToken())</span></div>
+          <div>src/hooks/useCurrentUser.ts <span class="text-slate-400">(53 lines — ACL check, role detection)</span></div>
+          <div>src/pages/EmployeesPage.tsx:39-70 <span class="text-red-500">(inline MenuGuard, only page with guard)</span></div>
+        </div>
+
+        <!-- Diagrams: Mermaid flowchart -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-red-600 font-medium mb-2">Before</div>
+            <div class="diagram-box diagram-before">
+              <pre class="mermaid">
+graph TD
+  A[auth.ts] --> |getToken| B[localStorage]
+  C[api.ts] --> |DEV_TOKEN env| D[API Headers]
+  E[useCurrentUser] --> |/acl/check| F[role detection]
+  G[EmployeesPage] --> |inline| H[MenuGuard]
+  I[Other Pages] --> |no guard| J[unprotected]
+  style C fill:#fef2f2
+  style I fill:#fef2f2
+              </pre>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-emerald-600 font-medium mb-2">After</div>
+            <div class="diagram-box diagram-after">
+              <pre class="mermaid">
+graph TD
+  A[auth.ts] --> |getToken| B[api.ts]
+  B --> |Bearer token| C[API Headers]
+  A --> |context| D[AuthProvider]
+  D --> |useAuth| E[MenuGuard shared]
+  D --> |useAuth| F[RouteGuard]
+  E --> G[All Pages Protected]
+  F --> G
+              </pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 text-sm">
+          <p><span class="font-semibold text-red-700">Problem:</span> The auth module has a seam (auth.ts) with no adapter in the API client — the API client bypasses the token manager entirely, and auth enforcement is scattered as inline guards in individual pages rather than centralized at the navigation seam.</p>
+          <p><span class="font-semibold text-emerald-700">Solution:</span> Wire <code class="bg-slate-100 px-1 rounded">api.ts</code> to use <code class="bg-slate-100 px-1 rounded">getToken()</code> from auth.ts, extract a shared <code class="bg-slate-100 px-1 rounded">AuthGuard</code> component, and add a React context for auth state.</p>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">API uses real auth</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">shared guard module</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">centralized auth state</span>
+          <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-medium">all pages protected</span>
+        </div>
+      </article>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- Top Recommendation -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <section class="bg-slate-900 text-white rounded-xl p-6 space-y-4">
+        <h2 class="text-xl font-semibold">Top Recommendation</h2>
+        <p class="text-slate-300">Start with <span class="text-emerald-400 font-semibold">Candidate 1: Data-Fetch Hook Factory</span>. It provides the highest leverage — touching every data-access hook in the project and removing ~2,000 lines of boilerplate. All other candidates become easier once the hook layer has a clean, thin interface.</p>
+
+        <div class="space-y-2">
+          <h3 class="text-sm uppercase tracking-wider text-slate-400">Recommended order</h3>
+          <div class="flex items-center gap-2 text-sm font-mono flex-wrap">
+            <span class="bg-emerald-700 px-2 py-0.5 rounded text-xs">1 Hook Factory</span>
+            <span class="text-slate-500">→</span>
+            <span class="bg-amber-600 px-2 py-0.5 rounded text-xs">3 Mappers</span>
+            <span class="text-slate-500">+</span>
+            <span class="bg-emerald-700 px-2 py-0.5 rounded text-xs">2 Date Format</span>
+            <span class="text-slate-500">→</span>
+            <span class="bg-amber-600 px-2 py-0.5 rounded text-xs">4 Filters</span>
+            <span class="text-slate-500">→</span>
+            <span class="bg-amber-600 px-2 py-0.5 rounded text-xs">5 Modals</span>
+            <span class="text-slate-500">→</span>
+            <span class="bg-amber-600 px-2 py-0.5 rounded text-xs">6 Combobox</span>
+            <span class="text-slate-500">→</span>
+            <span class="bg-slate-600 px-2 py-0.5 rounded text-xs">7 Auth</span>
+          </div>
+        </div>
+
+        <div class="text-sm text-slate-400 space-y-1">
+          <p><span class="text-emerald-400">Candidates 1 + 2</span> can run in parallel — independent, both strong.</p>
+          <p><span class="text-amber-400">Candidate 3</span> builds on 1 by standardizing the mapper layer inside each thin hook.</p>
+          <p><span class="text-amber-400">Candidates 4 + 5</span> depend on stable hook interfaces from 1.</p>
+          <p><span class="text-amber-400">Candidate 6</span> is UI-level, independent of data layer.</p>
+          <p><span class="text-slate-400">Candidate 7</span> is best done last when component structure is cleaner.</p>
+        </div>
+
+        <div class="pt-3 border-t border-slate-700">
+          <p class="text-sm text-slate-400">Estimated total impact: <span class="text-white font-semibold">~4,000 lines removed</span> across 35+ files.</p>
+        </div>
+      </section>
+
+    </main>
+  </body>
+</html>
