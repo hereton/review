@@ -1,0 +1,1875 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Permission Center API 04 — DB Audit Report</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .grade-a { background: #059669; color: white; }
+    .grade-b { background: #2563eb; color: white; }
+    .grade-c { background: #d97706; color: white; }
+    .grade-d { background: #ea580c; color: white; }
+    .grade-f { background: #dc2626; color: white; }
+    details summary { cursor: pointer; list-style: none; }
+    details summary::-webkit-details-marker { display: none; }
+    details[open] .chevron { transform: rotate(90deg); }
+    .chevron { transition: transform 0.2s; display: inline-block; }
+    .deep { background: linear-gradient(135deg, #0f172a, #1e293b); }
+    .badge-strong { background: #059669; color: white; }
+    .badge-worth { background: #d97706; color: white; }
+    .badge-spec { background: #64748b; color: white; }
+  </style>
+</head>
+<body class="bg-stone-50 text-slate-900 font-sans">
+<main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+  <!-- ============================================================ -->
+  <!-- HEADER                                                       -->
+  <!-- ============================================================ -->
+  <header class="space-y-6">
+    <div>
+      <p class="text-xs uppercase tracking-wider text-slate-400 mb-1">Database Audit Report</p>
+      <h1 class="text-3xl font-bold text-slate-900">permission-center-api04</h1>
+      <p class="text-sm text-slate-500 mt-1">2026-05-26 &middot; 112 migration files &middot; 19 repository files &middot; 18 models &middot; ~1,393 migration LOC</p>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <span class="text-sm text-slate-600 font-medium">Overall Grade:</span>
+      <span class="grade-d px-4 py-1.5 rounded-lg text-xl font-bold">D+</span>
+      <span class="text-sm text-slate-500">Strong schema &amp; query work undermined by hardcoded credentials and mixed lifecycle patterns</span>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+      <div class="bg-white rounded-lg border border-slate-200 p-3 text-center">
+        <p class="text-2xl font-bold text-slate-800">17</p>
+        <p class="text-slate-500 uppercase tracking-wider">Live Tables</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-3 text-center">
+        <p class="text-2xl font-bold text-slate-800">53</p>
+        <p class="text-slate-500 uppercase tracking-wider">Foreign Keys</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-3 text-center">
+        <p class="text-2xl font-bold text-slate-800">89</p>
+        <p class="text-slate-500 uppercase tracking-wider">Indexes</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-3 text-center">
+        <p class="text-2xl font-bold text-slate-800">56</p>
+        <p class="text-slate-500 uppercase tracking-wider">Migration Pairs</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-3 text-center">
+        <p class="text-2xl font-bold text-slate-800">4</p>
+        <p class="text-slate-500 uppercase tracking-wider">ENUM Types</p>
+      </div>
+    </div>
+
+    <!-- Stack Info Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+      <div class="bg-white rounded-lg border border-slate-200 p-3">
+        <div class="font-semibold text-slate-700">Database</div>
+        <div class="text-slate-500 mt-1">PostgreSQL</div>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-3">
+        <div class="font-semibold text-slate-700">ORM / Driver</div>
+        <div class="text-slate-500 mt-1">GORM v1.25.10 &middot; pgx/v5</div>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-3">
+        <div class="font-semibold text-slate-700">Migration Tool</div>
+        <div class="text-slate-500 mt-1">golang-migrate v4.19</div>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-3">
+        <div class="font-semibold text-slate-700">Language</div>
+        <div class="text-slate-500 mt-1">Go 1.24</div>
+      </div>
+    </div>
+
+    <!-- Critical Findings / Quick Wins -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-white border border-red-200 rounded-lg p-5 space-y-3">
+        <h3 class="text-sm font-bold text-red-700 uppercase tracking-wider">Top 3 Critical Findings</h3>
+        <div class="space-y-2 text-sm">
+          <div class="flex items-start gap-2">
+            <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">1</span>
+            <span class="text-slate-700">Hardcoded database credentials in 3 source files (config.go, seed_delegation_pairs, fix_migration)</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">2</span>
+            <span class="text-slate-700">Three different soft-delete strategies across tables (deleted_at, status VARCHAR, is_active BOOLEAN) — split-brain risk</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">3</span>
+            <span class="text-slate-700">ENUM type extensions are irreversible (migration 000050) — broken rollback path</span>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white border border-emerald-200 rounded-lg p-5 space-y-3">
+        <h3 class="text-sm font-bold text-emerald-700 uppercase tracking-wider">Top 3 Quick Wins</h3>
+        <div class="space-y-2 text-sm">
+          <div class="flex items-start gap-2">
+            <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">1</span>
+            <span class="text-slate-700">Move hardcoded DSN to env-only — remove defaultDatabaseURL() fallback (~1 hr)</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">2</span>
+            <span class="text-slate-700">Add CHECK constraints on status columns to enforce allowed values (~2 hrs)</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">3</span>
+            <span class="text-slate-700">Convert SetScopeApps loop INSERTs to batch INSERT (~30 min)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================================================ -->
+  <!-- 1. ER DIAGRAM                                                -->
+  <!-- ============================================================ -->
+  <section>
+    <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+      <span class="w-3 h-3 rounded-full bg-sky-500"></span>
+      1. ER Diagram — Live Tables
+    </h2>
+    <div class="bg-white border border-slate-200 rounded-lg p-4">
+      <div class="mermaid">
+erDiagram
+    applications {
+        BIGSERIAL id PK
+        VARCHAR code UK
+        VARCHAR name
+        VARCHAR status
+        VARCHAR access_model
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    users {
+        BIGSERIAL id PK
+        VARCHAR oid UK
+        VARCHAR employee_code
+        VARCHAR name
+        VARCHAR email
+        BOOLEAN is_active
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    roles {
+        BIGSERIAL id PK
+        BIGINT application_id FK
+        VARCHAR code
+        VARCHAR name
+        VARCHAR status
+        BOOLEAN is_system
+        TIMESTAMPTZ deleted_at
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    permissions {
+        BIGSERIAL id PK
+        BIGINT application_id FK
+        VARCHAR code
+        VARCHAR name
+        permission_type type
+        VARCHAR permission_group
+        VARCHAR status
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    role_permissions {
+        BIGSERIAL id PK
+        BIGINT role_id FK
+        BIGINT permission_id FK
+        TIMESTAMPTZ created_at
+    }
+
+    ou_role_mappings {
+        BIGSERIAL id PK
+        BIGINT application_id FK
+        BIGINT role_id FK
+        VARCHAR office
+        VARCHAR department
+        VARCHAR division
+        VARCHAR section
+        VARCHAR title
+        VARCHAR status
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    user_role_assignments {
+        BIGSERIAL id PK
+        BIGINT user_id FK
+        BIGINT application_id FK
+        BIGINT role_id FK
+        DATE expires_date
+        VARCHAR status
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    audit_logs {
+        BIGSERIAL id PK
+        BIGINT actor_id FK
+        BIGINT application_id FK
+        VARCHAR action
+        VARCHAR entity_type
+        BIGINT entity_id
+        JSONB payload
+        TIMESTAMPTZ created_at
+    }
+
+    sync_logs {
+        BIGSERIAL id PK
+        sync_type type
+        sync_status status
+        sync_trigger trigger
+        TEXT message
+        INT rows_affected
+        TIMESTAMPTZ started_at
+        TIMESTAMPTZ finished_at
+    }
+
+    role_permission_presets {
+        BIGSERIAL id PK
+        BIGINT actor_user_id FK
+        VARCHAR app_code
+        BIGINT role_id FK
+        VARCHAR name
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    preset_permissions {
+        BIGSERIAL id PK
+        BIGINT preset_id FK
+        BIGINT permission_id FK
+        TIMESTAMPTZ created_at
+    }
+
+    abac_bus {
+        BIGSERIAL id PK
+        VARCHAR code UK
+        VARCHAR name
+        BOOLEAN is_active
+        VARCHAR external_id
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    abac_divisions {
+        BIGSERIAL id PK
+        BIGINT bu_id FK
+        VARCHAR code UK
+        VARCHAR name
+        BOOLEAN is_active
+        VARCHAR external_id
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    abac_roles {
+        BIGSERIAL id PK
+        BIGINT application_id FK
+        BIGINT bu_id FK
+        BIGINT division_id FK
+        BIGINT rbac_role_id FK
+        VARCHAR code
+        VARCHAR name
+        BOOLEAN is_active
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    abac_delegations {
+        BIGSERIAL id PK
+        BIGINT application_id FK
+        BIGINT delegator_user_id FK
+        BIGINT delegatee_user_id FK
+        BIGINT bu_id FK
+        BIGINT division_id FK
+        VARCHAR status
+        DATE effective_date
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    delegation_pair_configs {
+        BIGSERIAL id PK
+        BIGINT application_id FK
+        BIGINT delegator_user_id FK
+        BIGINT delegatee_user_id FK
+        BOOLEAN is_active
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    user_abac_assignments {
+        BIGSERIAL id PK
+        BIGINT user_id FK
+        BIGINT application_id FK
+        BIGINT abac_role_id FK
+        BIGINT bu_id FK
+        BIGINT division_id FK
+        VARCHAR source
+        VARCHAR status
+        TIMESTAMPTZ archived_at
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    pc_admin_app_assignments {
+        BIGSERIAL id PK
+        BIGINT user_id FK
+        BIGINT application_id FK
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    applications ||--o{ roles : "has"
+    applications ||--o{ permissions : "has"
+    applications ||--o{ ou_role_mappings : "has"
+    applications ||--o{ user_role_assignments : "has"
+    applications ||--o{ abac_roles : "has"
+    applications ||--o{ user_abac_assignments : "has"
+    applications ||--o{ abac_delegations : "has"
+    applications ||--o{ delegation_pair_configs : "has"
+    applications ||--o{ pc_admin_app_assignments : "has"
+    roles ||--o{ role_permissions : "has"
+    roles ||--o{ ou_role_mappings : "maps"
+    roles ||--o{ user_role_assignments : "assigned"
+    permissions ||--o{ role_permissions : "in"
+    permissions ||--o{ preset_permissions : "in"
+    users ||--o{ user_role_assignments : "has"
+    users ||--o{ audit_logs : "actor"
+    users ||--o{ role_permission_presets : "creates"
+    users ||--o{ user_abac_assignments : "has"
+    users ||--o{ abac_delegations : "delegates"
+    users ||--o{ delegation_pair_configs : "in"
+    users ||--o{ pc_admin_app_assignments : "admin"
+    abac_bus ||--o{ abac_divisions : "has"
+    abac_bus ||--o{ abac_roles : "for"
+    abac_bus ||--o{ user_abac_assignments : "in"
+    abac_divisions ||--o{ abac_roles : "for"
+    abac_divisions ||--o{ user_abac_assignments : "in"
+    abac_roles ||--o{ user_abac_assignments : "assigned"
+    role_permission_presets ||--o{ preset_permissions : "contains"
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 2. LAYER GRADES OVERVIEW                                     -->
+  <!-- ============================================================ -->
+  <section>
+    <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+      <span class="w-3 h-3 rounded-full bg-violet-500"></span>
+      2. Layer Grades Overview
+    </h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+        <thead class="bg-slate-100">
+          <tr>
+            <th class="text-left px-4 py-2 font-semibold">Layer</th>
+            <th class="text-center px-4 py-2 font-semibold">Grade</th>
+            <th class="text-right px-4 py-2 font-semibold">Files</th>
+            <th class="text-right px-4 py-2 font-semibold">Lines</th>
+            <th class="text-center px-4 py-2 font-semibold">Anti-patterns</th>
+            <th class="text-center px-4 py-2 font-semibold">Healthy</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr>
+            <td class="px-4 py-2 font-medium text-indigo-700">Schema &amp; Table Design</td>
+            <td class="text-center px-4 py-2"><span class="grade-b px-2 py-0.5 rounded text-xs font-bold">B+</span></td>
+            <td class="text-right px-4 py-2">56</td>
+            <td class="text-right px-4 py-2">~1,393</td>
+            <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">2</span></td>
+            <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">5</span></td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium text-indigo-700">Constraints &amp; Integrity</td>
+            <td class="text-center px-4 py-2"><span class="grade-b px-2 py-0.5 rounded text-xs font-bold">B</span></td>
+            <td class="text-right px-4 py-2">56</td>
+            <td class="text-right px-4 py-2">~1,393</td>
+            <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">2</span></td>
+            <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">4</span></td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium text-indigo-700">Indexing Strategy</td>
+            <td class="text-center px-4 py-2"><span class="grade-a px-2 py-0.5 rounded text-xs font-bold">A-</span></td>
+            <td class="text-right px-4 py-2">56</td>
+            <td class="text-right px-4 py-2">~1,393</td>
+            <td class="text-center px-4 py-2"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">1</span></td>
+            <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">4</span></td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium text-indigo-700">Migration Management</td>
+            <td class="text-center px-4 py-2"><span class="grade-b px-2 py-0.5 rounded text-xs font-bold">B</span></td>
+            <td class="text-right px-4 py-2">112</td>
+            <td class="text-right px-4 py-2">~1,393</td>
+            <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">3</span></td>
+            <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">3</span></td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium text-indigo-700">Query Patterns</td>
+            <td class="text-center px-4 py-2"><span class="grade-a px-2 py-0.5 rounded text-xs font-bold">A-</span></td>
+            <td class="text-right px-4 py-2">19</td>
+            <td class="text-right px-4 py-2">~2,400</td>
+            <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">2</span></td>
+            <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">5</span></td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium text-indigo-700">Soft Delete &amp; Lifecycle</td>
+            <td class="text-center px-4 py-2"><span class="grade-c px-2 py-0.5 rounded text-xs font-bold">C</span></td>
+            <td class="text-right px-4 py-2">17</td>
+            <td class="text-right px-4 py-2">—</td>
+            <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">3</span></td>
+            <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">1</span></td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium text-indigo-700">Naming Conventions</td>
+            <td class="text-center px-4 py-2"><span class="grade-b px-2 py-0.5 rounded text-xs font-bold">B-</span></td>
+            <td class="text-right px-4 py-2">—</td>
+            <td class="text-right px-4 py-2">—</td>
+            <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">3</span></td>
+            <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">3</span></td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium text-indigo-700">Security &amp; Access</td>
+            <td class="text-center px-4 py-2"><span class="grade-f px-2 py-0.5 rounded text-xs font-bold">F</span></td>
+            <td class="text-right px-4 py-2">3</td>
+            <td class="text-right px-4 py-2">—</td>
+            <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">3</span></td>
+            <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">0</span></td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium text-indigo-700">Performance &amp; Scaling</td>
+            <td class="text-center px-4 py-2"><span class="grade-b px-2 py-0.5 rounded text-xs font-bold">B+</span></td>
+            <td class="text-right px-4 py-2">19</td>
+            <td class="text-right px-4 py-2">~2,400</td>
+            <td class="text-center px-4 py-2"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">1</span></td>
+            <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">4</span></td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium text-indigo-700">Seed Data &amp; Test Fixtures</td>
+            <td class="text-center px-4 py-2"><span class="grade-b px-2 py-0.5 rounded text-xs font-bold">B</span></td>
+            <td class="text-right px-4 py-2">7</td>
+            <td class="text-right px-4 py-2">~314</td>
+            <td class="text-center px-4 py-2"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">1</span></td>
+            <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">3</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 3. LAYER-BY-LAYER AUDIT                                      -->
+  <!-- ============================================================ -->
+  <section>
+    <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+      <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+      3. Layer-by-Layer Audit
+    </h2>
+
+    <!-- 3.1 Schema & Table Design -->
+    <details open class="mb-4">
+      <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+        <span class="chevron text-slate-400">&#9654;</span>
+        3.1 Schema &amp; Table Design
+        <span class="grade-b px-2 py-0.5 rounded text-xs font-bold ml-auto">B+</span>
+      </summary>
+      <div class="mt-2 space-y-3 pl-4">
+        <div class="text-xs font-mono text-slate-500 space-y-0.5">
+          <div>migrations/000001_create_applications.up.sql <span class="text-slate-400">(11 lines)</span></div>
+          <div>migrations/000002_create_users.up.sql <span class="text-slate-400">(17 lines)</span></div>
+          <div>migrations/000003_create_roles.up.sql <span class="text-slate-400">(13 lines)</span></div>
+          <div>migrations/000004_create_permissions.up.sql <span class="text-slate-400">(22 lines)</span></div>
+          <div>migrations/000047_create_abac_master_tables.up.sql <span class="text-slate-400">(77 lines — largest)</span></div>
+          <div>migrations/000048_create_user_abac_assignments.up.sql <span class="text-slate-400">(50 lines)</span></div>
+        </div>
+
+        <!-- Anti-patterns -->
+        <details open>
+          <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+            <span class="chevron text-slate-400">&#9654;</span>
+            Anti-patterns
+            <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs ml-auto">2</span>
+          </summary>
+          <div class="mt-2 space-y-2 pl-4">
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span>
+                <span class="font-medium">Dual status columns on roles table</span>
+              </div>
+              <p class="text-slate-600">The <code>roles</code> table has both <code>status VARCHAR(20)</code> (active/inactive) and <code>deleted_at TIMESTAMPTZ</code> — two competing lifecycle mechanisms creating split-brain risk.</p>
+              <div class="bg-slate-900 text-slate-100 rounded-lg p-4 text-xs font-mono overflow-x-auto mt-2">
+                <div class="text-slate-500">migrations/000008_add_status_deleted_at_to_roles.up.sql</div>
+                <pre class="mt-1">ALTER TABLE roles
+    ADD COLUMN IF NOT EXISTS status     VARCHAR(20)  NOT NULL DEFAULT 'active',
+    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ  NULL;</pre>
+              </div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                <span class="font-medium">Data migrations mixed with schema migrations</span>
+              </div>
+              <p class="text-slate-600">13 of 56 migration files contain INSERT/UPDATE/DELETE alongside schema DDL, making rollback harder and violating separation of concerns.</p>
+            </div>
+          </div>
+        </details>
+
+        <!-- Healthy patterns -->
+        <details>
+          <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+            <span class="chevron text-slate-400">&#9654;</span>
+            Healthy Patterns
+            <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs ml-auto">5</span>
+          </summary>
+          <div class="mt-2 space-y-2 pl-4">
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">BIGSERIAL identity columns throughout</span>
+              </div>
+              <p class="text-slate-600">All tables use BIGSERIAL PRIMARY KEY for consistent 64-bit auto-increment identity.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">TIMESTAMPTZ used consistently</span>
+              </div>
+              <p class="text-slate-600">All timestamp columns use timezone-aware TIMESTAMPTZ — no plain timestamp anywhere.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Proper ENUM types for bounded domains</span>
+              </div>
+              <p class="text-slate-600">permission_type, sync_status, sync_trigger, sync_type are proper PostgreSQL ENUMs rather than VARCHAR with comments.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Normalized 3NF design</span>
+              </div>
+              <p class="text-slate-600">No god tables (>30 columns). Junction tables properly separate many-to-many relationships. Permission presets normalized from JSONB to relational table (migration 000056).</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">IF NOT EXISTS guard on DDL</span>
+              </div>
+              <p class="text-slate-600">CREATE TABLE IF NOT EXISTS and ADD COLUMN IF NOT EXISTS used throughout — resilient to partial re-runs.</p>
+            </div>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <!-- 3.2 Constraints & Integrity -->
+    <details open class="mb-4">
+      <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+        <span class="chevron text-slate-400">&#9654;</span>
+        3.2 Constraints &amp; Integrity
+        <span class="grade-b px-2 py-0.5 rounded text-xs font-bold ml-auto">B</span>
+      </summary>
+      <div class="mt-2 space-y-3 pl-4">
+        <details open>
+          <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+            <span class="chevron text-slate-400">&#9654;</span>
+            Anti-patterns
+            <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs ml-auto">2</span>
+          </summary>
+          <div class="mt-2 space-y-2 pl-4">
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span>
+                <span class="font-medium">No CHECK constraints on status VARCHAR columns</span>
+              </div>
+              <p class="text-slate-600">Tables using <code>status VARCHAR(20)</code> (roles, permissions, applications, ou_role_mappings, abac_delegations, user_abac_assignments) have no CHECK constraint to enforce allowed values. Invalid statuses can be inserted freely.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span>
+                <span class="font-medium">Composite FK lacks index on abac_divisions(bu_id, id)</span>
+              </div>
+              <p class="text-slate-600"><code>user_abac_assignments</code> references <code>abac_divisions(bu_id, division_id)</code> via composite FK, but the index coverage should be verified for join performance.</p>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+            <span class="chevron text-slate-400">&#9654;</span>
+            Healthy Patterns
+            <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs ml-auto">4</span>
+          </summary>
+          <div class="mt-2 space-y-2 pl-4">
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">53 foreign keys with appropriate CASCADE/SET NULL</span>
+              </div>
+              <p class="text-slate-600">Comprehensive FK coverage. Most use ON DELETE CASCADE for dependent records; SET NULL for nullable references (audit_logs.application_id, abac_roles.rbac_role_id).</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">UNIQUE constraints on natural keys</span>
+              </div>
+              <p class="text-slate-600">Composite UNIQUE on (application_id, code) for roles and permissions. Unique on applications.code, users.oid, abac_bus.code, abac_divisions.code.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Partial unique indexes for business rules</span>
+              </div>
+              <p class="text-slate-600">uq_delegation_active enforces uniqueness only on active delegations. uq_uabac_active enforces uniqueness only on active ABAC assignments. Clever use of partial indexes for conditional uniqueness.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Consistent NOT NULL with defaults</span>
+              </div>
+              <p class="text-slate-600">Core columns are NOT NULL with sensible defaults (created_at DEFAULT NOW(), is_active DEFAULT TRUE, status DEFAULT 'active'). Nullable used strategically for optional data only.</p>
+            </div>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <!-- 3.3 Indexing Strategy -->
+    <details open class="mb-4">
+      <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+        <span class="chevron text-slate-400">&#9654;</span>
+        3.3 Indexing Strategy
+        <span class="grade-a px-2 py-0.5 rounded text-xs font-bold ml-auto">A-</span>
+      </summary>
+      <div class="mt-2 space-y-3 pl-4">
+        <details open>
+          <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+            <span class="chevron text-slate-400">&#9654;</span>
+            Anti-patterns
+            <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs ml-auto">1</span>
+          </summary>
+          <div class="mt-2 space-y-2 pl-4">
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                <span class="font-medium">Some FK columns may lack dedicated indexes</span>
+              </div>
+              <p class="text-slate-600">With 53 FKs and 89 indexes, coverage is good, but individual FK column index verification is recommended for join-heavy queries (e.g., role_permissions.permission_id).</p>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+            <span class="chevron text-slate-400">&#9654;</span>
+            Healthy Patterns
+            <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs ml-auto">4</span>
+          </summary>
+          <div class="mt-2 space-y-2 pl-4">
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">15 partial indexes for active-record queries</span>
+              </div>
+              <p class="text-slate-600">WHERE is_active = TRUE, WHERE deleted_at IS NULL, WHERE status = 'active' — dramatically reduces index size for the common query path.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Composite indexes aligned with query patterns</span>
+              </div>
+              <p class="text-slate-600">idx_permissions_application_id_type, idx_roles_application_id, composite indexes on ABAC tables — match the WHERE/JOIN clauses in repository code.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">IF NOT EXISTS on all index creation</span>
+              </div>
+              <p class="text-slate-600">All CREATE INDEX statements use IF NOT EXISTS — safe for re-runs and rollback/re-apply scenarios.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Time-based indexes for expiration tracking</span>
+              </div>
+              <p class="text-slate-600">Indexes on expires_date with WHERE clauses enable efficient cleanup queries for expired assignments and delegations.</p>
+            </div>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <!-- 3.4 Migration Management -->
+    <details open class="mb-4">
+      <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+        <span class="chevron text-slate-400">&#9654;</span>
+        3.4 Migration Management
+        <span class="grade-b px-2 py-0.5 rounded text-xs font-bold ml-auto">B</span>
+      </summary>
+      <div class="mt-2 space-y-3 pl-4">
+        <details open>
+          <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+            <span class="chevron text-slate-400">&#9654;</span>
+            Anti-patterns
+            <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs ml-auto">3</span>
+          </summary>
+          <div class="mt-2 space-y-2 pl-4">
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium">Critical</span>
+                <span class="font-medium">ENUM type extensions are irreversible</span>
+              </div>
+              <p class="text-slate-600">Migration 000050 adds 3 values to sync_type ENUM. PostgreSQL ALTER TYPE ADD VALUE cannot be reversed without recreating the type — the down migration is a no-op placeholder.</p>
+              <div class="bg-slate-900 text-slate-100 rounded-lg p-4 text-xs font-mono overflow-x-auto mt-2">
+                <div class="text-slate-500">migrations/000050_extend_sync_type_enum_for_abac.up.sql</div>
+                <pre class="mt-1"><span class="text-red-400">-- NOTE: In PostgreSQL, adding values to an ENUM is irreversible.</span>
+<span class="text-red-400">-- The down migration cannot remove these values without recreating the type.</span>
+
+ALTER TYPE sync_type ADD VALUE IF NOT EXISTS 'abac_master';
+ALTER TYPE sync_type ADD VALUE IF NOT EXISTS 'abac_assignment';
+ALTER TYPE sync_type ADD VALUE IF NOT EXISTS 'abac_delegation';</pre>
+              </div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span>
+                <span class="font-medium">6 tables dropped in production migrations</span>
+              </div>
+              <p class="text-slate-600">token_sessions, ad_groups, user_ad_groups, menus, role_menu_mappings, permission_center_migrations, permission_center_seeds all dropped. While down migrations recreate them, data loss is permanent on forward migration.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                <span class="font-medium">Data migrations mixed with schema DDL</span>
+              </div>
+              <p class="text-slate-600">7 files contain INSERT, 6 contain UPDATE alongside schema changes. Migration 000026 converts is_active to status. Migration 000034 converts updated_by from user_id to name. Migration 000056 normalizes JSONB to relational table.</p>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+            <span class="chevron text-slate-400">&#9654;</span>
+            Healthy Patterns
+            <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs ml-auto">3</span>
+          </summary>
+          <div class="mt-2 space-y-2 pl-4">
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">All 56 migrations have matching up/down pairs</span>
+              </div>
+              <p class="text-slate-600">100% rollback coverage. Every .up.sql has a corresponding .down.sql. Down migrations properly recreate dropped tables, re-add dropped columns, and reverse data changes.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Sequential 6-digit numbering</span>
+              </div>
+              <p class="text-slate-600">000001 through 000056 — clean, ordered, no gaps. Easy to understand sequence and locate specific migrations.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Idempotent seed migrations</span>
+              </div>
+              <p class="text-slate-600">ON CONFLICT DO NOTHING used in all seed files. Safe to re-run without duplicate key errors.</p>
+            </div>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <!-- 3.5 Query Patterns -->
+    <details open class="mb-4">
+      <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+        <span class="chevron text-slate-400">&#9654;</span>
+        3.5 Query Patterns
+        <span class="grade-a px-2 py-0.5 rounded text-xs font-bold ml-auto">A-</span>
+      </summary>
+      <div class="mt-2 space-y-3 pl-4">
+        <div class="text-xs font-mono text-slate-500 space-y-0.5">
+          <div>internal/repository/manage_user_repository.go <span class="text-slate-400">(~600 lines)</span></div>
+          <div>internal/repository/role_repository.go <span class="text-slate-400">(~420 lines)</span></div>
+          <div>internal/repository/overview_repository.go <span class="text-slate-400">(~160 lines)</span></div>
+          <div>internal/repository/user_repository.go <span class="text-slate-400">(~430 lines)</span></div>
+          <div>internal/repository/acl_repository.go <span class="text-slate-400">(~190 lines)</span></div>
+          <div>...and 14 more repository files</div>
+        </div>
+
+        <details open>
+          <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+            <span class="chevron text-slate-400">&#9654;</span>
+            Anti-patterns
+            <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs ml-auto">2</span>
+          </summary>
+          <div class="mt-2 space-y-2 pl-4">
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span>
+                <span class="font-medium">Minor N+1 in SetScopeApps</span>
+              </div>
+              <p class="text-slate-600">Loop executes individual INSERT statements instead of batch insert. For small arrays (typical admin scope apps) this is acceptable but not optimal.</p>
+              <div class="bg-slate-900 text-slate-100 rounded-lg p-4 text-xs font-mono overflow-x-auto mt-2">
+                <div class="text-slate-500">internal/repository/manage_user_repository.go:500-509</div>
+                <pre class="mt-1"><span class="text-red-400">for _, appID := range appIDs {</span>
+    if err := tx.Exec(
+        `INSERT INTO pc_admin_app_assignments (...) VALUES (...) ON CONFLICT DO NOTHING`,
+        userID, appID,
+    ).Error; err != nil {
+        return err
+    }
+<span class="text-red-400">}</span></pre>
+              </div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                <span class="font-medium">OFFSET/LIMIT pagination only</span>
+              </div>
+              <p class="text-slate-600">All list endpoints use OFFSET/LIMIT pagination. No cursor-based pagination for large datasets. Max page size enforced at 200 (user_repository.go) or 20 (role_repository.go).</p>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+            <span class="chevron text-slate-400">&#9654;</span>
+            Healthy Patterns
+            <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs ml-auto">5</span>
+          </summary>
+          <div class="mt-2 space-y-2 pl-4">
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Zero SELECT * usage</span>
+              </div>
+              <p class="text-slate-600">All queries use explicit column selection via GORM Select() or named columns in Raw() SQL. No SELECT * anywhere in the codebase.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">All queries parameterized — no SQL injection</span>
+              </div>
+              <p class="text-slate-600">GORM query builder and Raw() with ? placeholders throughout. LIKE patterns use escapeLike() helper (role_repository.go:409).</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Proper transaction boundaries</span>
+              </div>
+              <p class="text-slate-600">Multi-table writes use GORM Transaction() with automatic rollback: manage_user_repository (role assignment), role_permission_repository (permissions + audit), user_abac_assignment_repository (archive + insert).</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Batch queries to prevent N+1 in list operations</span>
+              </div>
+              <p class="text-slate-600">GetPermissionCountsByAppID and GetUserCountsByAppID use GROUP BY aggregation instead of per-row queries. Batch user lookups with IN clauses.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Context propagation throughout</span>
+              </div>
+              <p class="text-slate-600">All repository methods accept ctx and use r.db.WithContext(ctx). Enables request cancellation, timeout propagation, and tracing.</p>
+            </div>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <!-- 3.6 Soft Delete & Lifecycle -->
+    <details open class="mb-4">
+      <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+        <span class="chevron text-slate-400">&#9654;</span>
+        3.6 Soft Delete &amp; Lifecycle
+        <span class="grade-c px-2 py-0.5 rounded text-xs font-bold ml-auto">C</span>
+      </summary>
+      <div class="mt-2 space-y-3 pl-4">
+        <details open>
+          <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+            <span class="chevron text-slate-400">&#9654;</span>
+            Anti-patterns
+            <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs ml-auto">3</span>
+          </summary>
+          <div class="mt-2 space-y-2 pl-4">
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium">Critical</span>
+                <span class="font-medium">Three different soft-delete strategies across tables</span>
+              </div>
+              <p class="text-slate-600">Inconsistent lifecycle management makes querying error-prone:</p>
+              <ul class="text-slate-600 list-disc list-inside mt-1 space-y-1">
+                <li><strong>deleted_at</strong> (GORM soft delete): roles only</li>
+                <li><strong>status VARCHAR(20)</strong> ('active'/'inactive'): roles, permissions, applications, ou_role_mappings, abac_delegations, user_abac_assignments</li>
+                <li><strong>is_active BOOLEAN</strong>: users, abac_bus, abac_divisions, abac_roles, delegation_pair_configs</li>
+              </ul>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span>
+                <span class="font-medium">Dual status on roles: deleted_at + status</span>
+              </div>
+              <p class="text-slate-600">The roles table has both GORM DeletedAt (deleted_at) and a manual status column. A role could be status='active' with deleted_at set, or status='inactive' with deleted_at=NULL — contradictory states.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                <span class="font-medium">Hard delete on some tables, soft delete on others</span>
+              </div>
+              <p class="text-slate-600">ou_role_mappings uses status='inactive' for soft delete. user_role_assignments uses hard DELETE. No consistent policy for which tables should preserve history.</p>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+            <span class="chevron text-slate-400">&#9654;</span>
+            Healthy Patterns
+            <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs ml-auto">1</span>
+          </summary>
+          <div class="mt-2 space-y-2 pl-4">
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">archived_at for ABAC assignment history</span>
+              </div>
+              <p class="text-slate-600">user_abac_assignments uses archived_at TIMESTAMPTZ for soft-delete with timestamp — a better pattern than deleted_at as it conveys intent (archive, not delete).</p>
+            </div>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <!-- 3.7 Naming Conventions -->
+    <details open class="mb-4">
+      <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+        <span class="chevron text-slate-400">&#9654;</span>
+        3.7 Naming Conventions
+        <span class="grade-b px-2 py-0.5 rounded text-xs font-bold ml-auto">B-</span>
+      </summary>
+      <div class="mt-2 space-y-3 pl-4">
+        <details open>
+          <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+            <span class="chevron text-slate-400">&#9654;</span>
+            Anti-patterns
+            <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs ml-auto">3</span>
+          </summary>
+          <div class="mt-2 space-y-2 pl-4">
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span>
+                <span class="font-medium">updated_by type changed mid-stream (BIGINT FK → VARCHAR)</span>
+              </div>
+              <p class="text-slate-600">Migration 000034 converted updated_by from "user:&lt;id&gt;" pattern to actual user name (VARCHAR). This is a naming scar — the column holds different data types across its history.</p>
+              <div class="bg-slate-900 text-slate-100 rounded-lg p-4 text-xs font-mono overflow-x-auto mt-2">
+                <div class="text-slate-500">migrations/000034_fix_updated_by_user_id_to_name.up.sql</div>
+                <pre class="mt-1">UPDATE roles r
+SET updated_by = u.name
+FROM users u
+WHERE r.updated_by = 'user:' || u.id::text;</pre>
+              </div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                <span class="font-medium">Inconsistent lifecycle column names</span>
+              </div>
+              <p class="text-slate-600">Same concept (is this record active?) uses different names: is_active, status, deleted_at, archived_at across tables.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                <span class="font-medium">created_by vs actor_user_id inconsistency</span>
+              </div>
+              <p class="text-slate-600">role_permission_presets uses actor_user_id. ou_role_mappings uses created_by. Both track who created the record but with different column names.</p>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+            <span class="chevron text-slate-400">&#9654;</span>
+            Healthy Patterns
+            <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs ml-auto">3</span>
+          </summary>
+          <div class="mt-2 space-y-2 pl-4">
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Consistent snake_case throughout</span>
+              </div>
+              <p class="text-slate-600">All table names are plural snake_case. All column names are snake_case. No camelCase or PascalCase in SQL identifiers.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Same-concept-same-name for most columns</span>
+              </div>
+              <p class="text-slate-600">application_id, user_id, role_id, created_at, updated_at are consistent across all tables. Foreign key columns match the referenced table's id column naming.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Descriptive index names with prefix convention</span>
+              </div>
+              <p class="text-slate-600">idx_ prefix for standard indexes, uq_ prefix for unique indexes. Names include table and column context (e.g., idx_abac_bus_active, uq_delegation_active).</p>
+            </div>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <!-- 3.8 Security & Access -->
+    <details open class="mb-4">
+      <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+        <span class="chevron text-slate-400">&#9654;</span>
+        3.8 Security &amp; Access
+        <span class="grade-f px-2 py-0.5 rounded text-xs font-bold ml-auto">F</span>
+      </summary>
+      <div class="mt-2 space-y-3 pl-4">
+        <details open>
+          <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+            <span class="chevron text-slate-400">&#9654;</span>
+            Anti-patterns
+            <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs ml-auto">3</span>
+          </summary>
+          <div class="mt-2 space-y-2 pl-4">
+            <div class="bg-white border border-red-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium">Critical</span>
+                <span class="font-medium">Hardcoded database credentials in config.go</span>
+              </div>
+              <p class="text-slate-600">defaultDatabaseURL() contains production IP (10.13.112.3), database name, username, and plaintext password. Used as fallback when DATABASE_URL env is not set.</p>
+              <div class="bg-slate-900 text-slate-100 rounded-lg p-4 text-xs font-mono overflow-x-auto mt-2">
+                <div class="text-slate-500">internal/config/config.go:54-63</div>
+                <pre class="mt-1">func defaultDatabaseURL() string {
+    u := url.URL{
+        Scheme:   "postgresql",
+        Host:     "10.13.112.3:5432",
+        Path:     "/permission-center-nonprod-04",
+        RawQuery: "sslmode=require",
+        User:     url.UserPassword(<span class="text-red-400">"postgres", "-Vz*_Vf=}#1sRTD6"</span>),
+    }
+    return u.String()
+}</pre>
+              </div>
+            </div>
+            <div class="bg-white border border-red-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium">Critical</span>
+                <span class="font-medium">Hardcoded DSN in cmd/seed_delegation_pairs/main.go</span>
+              </div>
+              <div class="bg-slate-900 text-slate-100 rounded-lg p-4 text-xs font-mono overflow-x-auto mt-2">
+                <div class="text-slate-500">cmd/seed_delegation_pairs/main.go:15</div>
+                <pre class="mt-1">dsn = <span class="text-red-400">"postgresql://admin:StrongPassword123!@172.31.42.28:8111/mydb?sslmode=disable"</span></pre>
+              </div>
+            </div>
+            <div class="bg-white border border-red-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium">Critical</span>
+                <span class="font-medium">Hardcoded DSN in cmd/fix_migration/main.go</span>
+              </div>
+              <div class="bg-slate-900 text-slate-100 rounded-lg p-4 text-xs font-mono overflow-x-auto mt-2">
+                <div class="text-slate-500">cmd/fix_migration/main.go:12</div>
+                <pre class="mt-1">dsn = <span class="text-red-400">"postgresql://admin:StrongPassword123!@172.31.42.28:8111/mydb?sslmode=disable"</span></pre>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <!-- 3.9 Performance & Scaling -->
+    <details class="mb-4">
+      <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+        <span class="chevron text-slate-400">&#9654;</span>
+        3.9 Performance &amp; Scaling
+        <span class="grade-b px-2 py-0.5 rounded text-xs font-bold ml-auto">B+</span>
+      </summary>
+      <div class="mt-2 space-y-3 pl-4">
+        <details open>
+          <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+            <span class="chevron text-slate-400">&#9654;</span>
+            Anti-patterns
+            <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs ml-auto">1</span>
+          </summary>
+          <div class="mt-2 space-y-2 pl-4">
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                <span class="font-medium">No explicit connection pool configuration</span>
+              </div>
+              <p class="text-slate-600">GORM defaults (max idle conns, max open conns, conn max lifetime) are used. For a permission service with multiple upstream sync jobs, explicit pool tuning is recommended.</p>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+            <span class="chevron text-slate-400">&#9654;</span>
+            Healthy Patterns
+            <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs ml-auto">4</span>
+          </summary>
+          <div class="mt-2 space-y-2 pl-4">
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Page size limits enforced</span>
+              </div>
+              <p class="text-slate-600">Max page size of 200 (users) and 20 (roles) prevents unbounded queries. Total count query run before pagination for response metadata.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Batch inserts in permission assignment</span>
+              </div>
+              <p class="text-slate-600">role_permission_repository builds slice then uses tx.Create(&rows) for single INSERT — not N+1.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">GORM Session reuse for count + query</span>
+              </div>
+              <p class="text-slate-600">countQ := q.Session(&gorm.Session{}) clones the query builder before adding pagination, avoiding mutation side effects.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">LIKE escaping helper prevents wildcard injection</span>
+              </div>
+              <p class="text-slate-600">escapeLike() in role_repository.go escapes \, %, _ in user search input before passing to ILIKE.</p>
+            </div>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <!-- 3.10 Seed Data & Test Fixtures -->
+    <details class="mb-4">
+      <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+        <span class="chevron text-slate-400">&#9654;</span>
+        3.10 Seed Data &amp; Test Fixtures
+        <span class="grade-b px-2 py-0.5 rounded text-xs font-bold ml-auto">B</span>
+      </summary>
+      <div class="mt-2 space-y-3 pl-4">
+        <details open>
+          <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+            <span class="chevron text-slate-400">&#9654;</span>
+            Anti-patterns
+            <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs ml-auto">1</span>
+          </summary>
+          <div class="mt-2 space-y-2 pl-4">
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                <span class="font-medium">Test users in production seed migration</span>
+              </div>
+              <p class="text-slate-600">Migration 000033 seeds 5 test users with Thai names (Somchai, Somsri, etc.) as a regular migration. These will run in production unless explicitly excluded.</p>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+            <span class="chevron text-slate-400">&#9654;</span>
+            Healthy Patterns
+            <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs ml-auto">3</span>
+          </summary>
+          <div class="mt-2 space-y-2 pl-4">
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Idempotent seeds with ON CONFLICT DO NOTHING</span>
+              </div>
+              <p class="text-slate-600">All seed files use conflict resolution — safe to re-run without errors.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Realistic test data with Thai names and org structure</span>
+              </div>
+              <p class="text-slate-600">Seed data reflects production patterns — Thai names, department/section hierarchy, multi-BU ABAC scenarios.</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium">Good</span>
+                <span class="font-medium">Comprehensive ABAC test scenarios</span>
+              </div>
+              <p class="text-slate-600">Migration 000055 seeds 5 mock ABAC delegations covering all status variants (active, pending, inactive) and multi-BU scenarios.</p>
+            </div>
+          </div>
+        </details>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 4. ANTI-PATTERN CATALOG                                      -->
+  <!-- ============================================================ -->
+  <section>
+    <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+      <span class="w-3 h-3 rounded-full bg-red-500"></span>
+      4. Anti-Pattern Catalog
+    </h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+        <thead class="bg-slate-100">
+          <tr>
+            <th class="text-left px-4 py-2 font-semibold">Pattern</th>
+            <th class="text-center px-4 py-2 font-semibold">Severity</th>
+            <th class="text-center px-4 py-2 font-semibold">Occurrences</th>
+            <th class="text-left px-4 py-2 font-semibold">Key Files</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr class="bg-red-50">
+            <td class="px-4 py-2 font-medium">Hardcoded database credentials</td>
+            <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium">Critical</span></td>
+            <td class="text-center px-4 py-2">3</td>
+            <td class="px-4 py-2 text-xs font-mono text-slate-500">config.go, seed_delegation_pairs/main.go, fix_migration/main.go</td>
+          </tr>
+          <tr class="bg-red-50">
+            <td class="px-4 py-2 font-medium">Mixed soft-delete strategies (3 patterns)</td>
+            <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium">Critical</span></td>
+            <td class="text-center px-4 py-2">17 tables</td>
+            <td class="px-4 py-2 text-xs font-mono text-slate-500">roles, users, abac_*, applications, permissions</td>
+          </tr>
+          <tr class="bg-red-50">
+            <td class="px-4 py-2 font-medium">Irreversible ENUM migration</td>
+            <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium">Critical</span></td>
+            <td class="text-center px-4 py-2">1</td>
+            <td class="px-4 py-2 text-xs font-mono text-slate-500">000050_extend_sync_type_enum_for_abac.up.sql</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium">Missing CHECK constraints on status columns</td>
+            <td class="text-center px-4 py-2"><span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span></td>
+            <td class="text-center px-4 py-2">6 tables</td>
+            <td class="px-4 py-2 text-xs font-mono text-slate-500">roles, permissions, applications, ou_role_mappings, abac_delegations, user_abac_assignments</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium">Dual status columns (roles: status + deleted_at)</td>
+            <td class="text-center px-4 py-2"><span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span></td>
+            <td class="text-center px-4 py-2">1</td>
+            <td class="px-4 py-2 text-xs font-mono text-slate-500">roles table</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium">Tables dropped in production migrations</td>
+            <td class="text-center px-4 py-2"><span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span></td>
+            <td class="text-center px-4 py-2">6</td>
+            <td class="px-4 py-2 text-xs font-mono text-slate-500">000022–000037 migration range</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium">Data migrations mixed with schema DDL</td>
+            <td class="text-center px-4 py-2"><span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span></td>
+            <td class="text-center px-4 py-2">13 files</td>
+            <td class="px-4 py-2 text-xs font-mono text-slate-500">000025, 000026, 000033, 000034, 000043, 000044, 000045, 000051, 000053, 000054, 000055, 000056</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium">Minor N+1 in SetScopeApps loop</td>
+            <td class="text-center px-4 py-2"><span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span></td>
+            <td class="text-center px-4 py-2">1</td>
+            <td class="px-4 py-2 text-xs font-mono text-slate-500">manage_user_repository.go:500-509</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium">updated_by type evolution scar</td>
+            <td class="text-center px-4 py-2"><span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span></td>
+            <td class="text-center px-4 py-2">4 tables</td>
+            <td class="px-4 py-2 text-xs font-mono text-slate-500">roles, permissions, ou_role_mappings, user_role_assignments</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium">OFFSET/LIMIT pagination only</td>
+            <td class="text-center px-4 py-2"><span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span></td>
+            <td class="text-center px-4 py-2">All list endpoints</td>
+            <td class="px-4 py-2 text-xs font-mono text-slate-500">*_repository.go</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium">No connection pool configuration</td>
+            <td class="text-center px-4 py-2"><span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span></td>
+            <td class="text-center px-4 py-2">1</td>
+            <td class="px-4 py-2 text-xs font-mono text-slate-500">cmd/server/main.go</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium">Test users in production seed</td>
+            <td class="text-center px-4 py-2"><span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span></td>
+            <td class="text-center px-4 py-2">1</td>
+            <td class="px-4 py-2 text-xs font-mono text-slate-500">000033_seed_test_users.up.sql</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 5. CONSTRAINT & INTEGRITY MAP                                -->
+  <!-- ============================================================ -->
+  <section>
+    <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+      <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+      5. Constraint &amp; Integrity Map
+    </h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-white border border-slate-200 rounded-lg p-4">
+        <h3 class="text-sm font-bold text-slate-700 mb-2">FK Coverage</h3>
+        <div class="text-xs space-y-1">
+          <div class="flex justify-between"><span class="text-slate-600">applications</span><span class="text-emerald-600">no FKs (root)</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">users</span><span class="text-emerald-600">no FKs (root)</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">roles</span><span class="text-emerald-600">→ applications</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">permissions</span><span class="text-emerald-600">→ applications</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">role_permissions</span><span class="text-emerald-600">→ roles, permissions</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">ou_role_mappings</span><span class="text-emerald-600">→ applications, roles</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">user_role_assignments</span><span class="text-emerald-600">→ users, applications, roles</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">audit_logs</span><span class="text-emerald-600">→ users, applications</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">sync_logs</span><span class="text-emerald-600">no FKs (standalone)</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">abac_bus</span><span class="text-emerald-600">no FKs (root)</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">abac_divisions</span><span class="text-emerald-600">→ abac_bus</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">abac_roles</span><span class="text-emerald-600">→ applications, abac_bus, abac_divisions, roles</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">abac_delegations</span><span class="text-emerald-600">→ applications, users(x2), abac_bus, abac_divisions</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">delegation_pair_configs</span><span class="text-emerald-600">→ applications, users(x2)</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">user_abac_assignments</span><span class="text-emerald-600">→ users, applications, abac_roles, abac_bus, abac_divisions</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">pc_admin_app_assignments</span><span class="text-emerald-600">→ users, applications</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">role_permission_presets</span><span class="text-emerald-600">→ users, roles</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">preset_permissions</span><span class="text-emerald-600">→ role_permission_presets, permissions</span></div>
+        </div>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-lg p-4">
+        <h3 class="text-sm font-bold text-slate-700 mb-2">Integrity Issues</h3>
+        <div class="space-y-2">
+          <div class="text-sm flex items-start gap-2">
+            <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">High</span>
+            <span class="text-slate-600">No CHECK on status VARCHAR columns (6 tables)</span>
+          </div>
+          <div class="text-sm flex items-start gap-2">
+            <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">Critical</span>
+            <span class="text-slate-600">Dual lifecycle on roles: deleted_at + status</span>
+          </div>
+          <div class="text-sm flex items-start gap-2">
+            <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">Medium</span>
+            <span class="text-slate-600">sync_logs has no FK to any entity — relies on convention</span>
+          </div>
+        </div>
+
+        <h3 class="text-sm font-bold text-slate-700 mt-4 mb-2">CHECK Constraints</h3>
+        <div class="text-xs space-y-1">
+          <div class="flex justify-between"><span class="text-slate-600">role_delegations.status</span><span class="text-emerald-600">IN ('active','pending','inactive')</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">roles.status</span><span class="text-red-600">NONE — VARCHAR(20) unconstrained</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">permissions.status</span><span class="text-red-600">NONE — VARCHAR(20) unconstrained</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">applications.status</span><span class="text-red-600">NONE — VARCHAR(20) unconstrained</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">ou_role_mappings.status</span><span class="text-red-600">NONE — VARCHAR(20) unconstrained</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 6. MIGRATION HISTORY REVIEW                                  -->
+  <!-- ============================================================ -->
+  <section>
+    <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+      <span class="w-3 h-3 rounded-full bg-indigo-500"></span>
+      6. Migration History Review
+    </h2>
+    <div class="bg-white border border-slate-200 rounded-lg p-5 space-y-4">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+        <div class="text-center">
+          <p class="text-2xl font-bold text-slate-800">56</p>
+          <p class="text-slate-500 uppercase tracking-wider">Migration Pairs</p>
+        </div>
+        <div class="text-center">
+          <p class="text-2xl font-bold text-slate-800">112</p>
+          <p class="text-slate-500 uppercase tracking-wider">Total Files</p>
+        </div>
+        <div class="text-center">
+          <p class="text-2xl font-bold text-slate-800">~1,393</p>
+          <p class="text-slate-500 uppercase tracking-wider">Total Lines</p>
+        </div>
+        <div class="text-center">
+          <p class="text-2xl font-bold text-slate-800">100%</p>
+          <p class="text-slate-500 uppercase tracking-wider">Up/Down Coverage</p>
+        </div>
+      </div>
+
+      <div class="text-sm space-y-2">
+        <div class="flex justify-between items-center py-1 border-b border-slate-100">
+          <span class="text-slate-600">Naming Convention</span>
+          <span class="text-emerald-600 font-medium">Sequential 6-digit (000001–000056)</span>
+        </div>
+        <div class="flex justify-between items-center py-1 border-b border-slate-100">
+          <span class="text-slate-600">Rollback Support</span>
+          <span class="text-emerald-600 font-medium">All 56 pairs have down files</span>
+        </div>
+        <div class="flex justify-between items-center py-1 border-b border-slate-100">
+          <span class="text-slate-600">Destructive Migrations</span>
+          <span class="text-red-600 font-medium">14 DROP TABLE/COLUMN operations</span>
+        </div>
+        <div class="flex justify-between items-center py-1 border-b border-slate-100">
+          <span class="text-slate-600">Data + Schema Mixed</span>
+          <span class="text-amber-600 font-medium">13 files combine INSERT/UPDATE with DDL</span>
+        </div>
+        <div class="flex justify-between items-center py-1 border-b border-slate-100">
+          <span class="text-slate-600">Seed Files</span>
+          <span class="text-slate-600 font-medium">7 seed migrations (000025, 000033, 000043, 000053, 000054, 000055, 000056)</span>
+        </div>
+        <div class="flex justify-between items-center py-1">
+          <span class="text-slate-600">ENUM Irreversibility</span>
+          <span class="text-red-600 font-medium">000050 — cannot roll back</span>
+        </div>
+      </div>
+
+      <details>
+        <summary class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-100 cursor-pointer">
+          <span class="chevron text-slate-400">&#9654;</span>
+          Full Migration File Listing
+        </summary>
+        <div class="mt-2 text-xs font-mono text-slate-500 max-h-96 overflow-y-auto space-y-0.5 pl-4">
+          <div>000001_create_applications.up.sql (11 lines)</div>
+          <div>000002_create_users.up.sql (17 lines)</div>
+          <div>000003_create_roles.up.sql (13 lines)</div>
+          <div>000004_create_permissions.up.sql (22 lines)</div>
+          <div>000005_create_role_permissions.up.sql (8 lines)</div>
+          <div>000006_create_ou_role_mappings.up.sql (16 lines)</div>
+          <div>000007_create_audit_logs.up.sql (14 lines)</div>
+          <div>000008_add_status_deleted_at_to_roles.up.sql (11 lines)</div>
+          <div>000009_add_azure_fields_to_applications.up.sql (6 lines)</div>
+          <div>000010_add_azure_fields_to_users.up.sql (13 lines)</div>
+          <div>000011_create_ad_groups.up.sql (10 lines)</div>
+          <div>000012_create_user_ad_groups.up.sql (8 lines)</div>
+          <div>000013_create_token_sessions.up.sql (14 lines)</div>
+          <div>000014_rework_ou_role_mappings_to_jwt_fields.up.sql (22 lines)</div>
+          <div>000015_rework_users_ou_to_jwt_fields.up.sql (32 lines)</div>
+          <div>000016_fix_ou_role_mappings.up.sql (19 lines)</div>
+          <div>000017_add_sensitive_status_to_permissions.up.sql (7 lines)</div>
+          <div>000018_create_user_role_assignments.up.sql (19 lines)</div>
+          <div>000019_create_sync_logs.up.sql (32 lines)</div>
+          <div>000020_add_application_id_to_audit_logs.up.sql (4 lines)</div>
+          <div>000021_rename_employee_id_to_oid.up.sql (15 lines)</div>
+          <div>000022_drop_token_sessions.up.sql (1 line) <span class="text-red-500">DESTRUCTIVE</span></div>
+          <div>000023_drop_ad_groups.up.sql (19 lines) <span class="text-red-500">DESTRUCTIVE</span></div>
+          <div>000024_add_display_columns_to_applications.up.sql (8 lines)</div>
+          <div>000025_seed_applications.up.sql (20 lines) <span class="text-amber-500">SEED</span></div>
+          <div>000026_add_application_metadata_fields.up.sql (14 lines) <span class="text-amber-500">DATA+DDL</span></div>
+          <div>000027_create_menus_table.up.sql (21 lines)</div>
+          <div>000028_create_role_menu_mappings_table.up.sql (13 lines)</div>
+          <div>000029_drop_role_menu_mappings.up.sql (3 lines) <span class="text-red-500">DESTRUCTIVE</span></div>
+          <div>000030_drop_menus.up.sql (21 lines) <span class="text-red-500">DESTRUCTIVE</span></div>
+          <div>000031_add_group_to_permissions.up.sql (9 lines)</div>
+          <div>000032_create_role_permission_presets.up.sql (15 lines)</div>
+          <div>000033_seed_test_users.up.sql (68 lines) <span class="text-amber-500">SEED</span></div>
+          <div>000034_fix_updated_by_user_id_to_name.up.sql (26 lines) <span class="text-amber-500">DATA MIGRATION</span></div>
+          <div>000035_add_employee_code_to_users.up.sql (3 lines)</div>
+          <div>000036_drop_permission_center_migrations_table.up.sql (1 line) <span class="text-red-500">DESTRUCTIVE</span></div>
+          <div>000037_drop_permission_center_seeds_table.up.sql (1 line) <span class="text-red-500">DESTRUCTIVE</span></div>
+          <div>000038_create_role_delegations.up.sql (18 lines)</div>
+          <div>000039_create_delegation_pair_configs.up.sql (12 lines)</div>
+          <div>000040_rename_delegation_expired_to_inactive_and_add_pending.up.sql (9 lines)</div>
+          <div>000041_add_updated_by_to_role_delegations.up.sql (1 line)</div>
+          <div>000042_create_pc_admin_app_assignments.up.sql (11 lines)</div>
+          <div>000043_seed_pc_roles.up.sql (12 lines) <span class="text-amber-500">SEED</span></div>
+          <div>000044_add_is_system_to_roles.up.sql (4 lines) <span class="text-amber-500">DATA+DDL</span></div>
+          <div>000045_fix_pc_app_is_self.up.sql (1 line) <span class="text-amber-500">DATA</span></div>
+          <div>000046_drop_is_self_from_applications.up.sql (1 line)</div>
+          <div>000047_create_abac_master_tables.up.sql (77 lines)</div>
+          <div>000048_create_user_abac_assignments.up.sql (50 lines)</div>
+          <div>000049_rename_role_delegations_to_abac.up.sql (53 lines)</div>
+          <div>000050_extend_sync_type_enum_for_abac.up.sql (7 lines) <span class="text-red-500">IRREVERSIBLE</span></div>
+          <div>000051_add_access_model_to_applications.up.sql (12 lines) <span class="text-amber-500">DATA+DDL</span></div>
+          <div>000052_make_audit_actor_id_nullable.up.sql (4 lines)</div>
+          <div>000053_seed_webproold_app.up.sql (4 lines) <span class="text-amber-500">SEED</span></div>
+          <div>000054_seed_abac_master_webproold.up.sql (79 lines) <span class="text-amber-500">SEED</span></div>
+          <div>000055_seed_abac_delegations_webproold.up.sql (127 lines) <span class="text-amber-500">SEED</span></div>
+          <div>000056_normalize_preset_permissions.up.sql (26 lines) <span class="text-amber-500">DATA MIGRATION</span></div>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 7. NAMING CONSISTENCY REPORT                                 -->
+  <!-- ============================================================ -->
+  <section>
+    <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+      <span class="w-3 h-3 rounded-full bg-violet-500"></span>
+      7. Naming Consistency Report
+    </h2>
+    <div class="bg-white border border-slate-200 rounded-lg p-5 space-y-4">
+      <div class="text-sm space-y-3">
+        <div>
+          <h3 class="font-semibold text-slate-700 mb-1">Table Naming</h3>
+          <div class="flex items-center gap-2">
+            <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs font-medium">Good</span>
+            <span class="text-slate-600">All plural snake_case (applications, users, roles, abac_bus, etc.)</span>
+          </div>
+        </div>
+        <div>
+          <h3 class="font-semibold text-slate-700 mb-1">Timestamp Types</h3>
+          <div class="flex items-center gap-2">
+            <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs font-medium">Good</span>
+            <span class="text-slate-600">All TIMESTAMPTZ — no plain timestamp anywhere</span>
+          </div>
+        </div>
+        <div>
+          <h3 class="font-semibold text-slate-700 mb-1">Inconsistencies</h3>
+          <div class="space-y-1">
+            <div class="flex items-start gap-2">
+              <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-medium shrink-0">Medium</span>
+              <span class="text-slate-600">Lifecycle columns: is_active (BOOLEAN), status (VARCHAR), deleted_at (TIMESTAMPTZ), archived_at (TIMESTAMPTZ) — same concept, 4 different names</span>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-medium shrink-0">Medium</span>
+              <span class="text-slate-600">Creator tracking: created_by (VARCHAR) vs actor_user_id (BIGINT FK) — same concept, different names</span>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-medium shrink-0">Medium</span>
+              <span class="text-slate-600">updated_by evolved from "user:&lt;id&gt;" string to actual name — historical inconsistency in data</span>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-medium shrink-0">Medium</span>
+              <span class="text-slate-600">Status field: some tables use ENUM (sync_status, sync_trigger), others use VARCHAR without CHECK (roles.status, permissions.status)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 8. TOOLING & PATTERN RECOMMENDATIONS                         -->
+  <!-- ============================================================ -->
+  <section>
+    <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+      <span class="w-3 h-3 rounded-full bg-sky-500"></span>
+      8. Tooling &amp; Pattern Recommendations
+    </h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+        <thead class="bg-slate-100">
+          <tr>
+            <th class="text-left px-4 py-2 font-semibold">Area</th>
+            <th class="text-left px-4 py-2 font-semibold">Current</th>
+            <th class="text-left px-4 py-2 font-semibold">Recommended</th>
+            <th class="text-center px-4 py-2 font-semibold">Confidence</th>
+            <th class="text-left px-4 py-2 font-semibold">Why</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr>
+            <td class="px-4 py-2 font-medium">Secret management</td>
+            <td class="px-4 py-2">Hardcoded DSN fallback</td>
+            <td class="px-4 py-2">Env-only, fail-fast on missing DATABASE_URL</td>
+            <td class="text-center px-4 py-2"><span class="badge-strong px-2 py-0.5 rounded text-xs font-bold">Strong</span></td>
+            <td class="px-4 py-2 text-slate-600">Credentials in source code is a critical security risk</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium">Soft-delete strategy</td>
+            <td class="px-4 py-2">3 different patterns</td>
+            <td class="px-4 py-2">Standardize on single pattern (status ENUM + unified name)</td>
+            <td class="text-center px-4 py-2"><span class="badge-strong px-2 py-0.5 rounded text-xs font-bold">Strong</span></td>
+            <td class="px-4 py-2 text-slate-600">Mixed patterns cause query bugs and split-brain states</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium">Status columns</td>
+            <td class="px-4 py-2">VARCHAR without CHECK</td>
+            <td class="px-4 py-2">ENUM types or CHECK constraints</td>
+            <td class="text-center px-4 py-2"><span class="badge-strong px-2 py-0.5 rounded text-xs font-bold">Strong</span></td>
+            <td class="px-4 py-2 text-slate-600">Database-enforced valid values prevent data corruption</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium">Data migrations</td>
+            <td class="px-4 py-2">Mixed with schema DDL</td>
+            <td class="px-4 py-2">Separate data migration files with idempotency guards</td>
+            <td class="text-center px-4 py-2"><span class="badge-worth px-2 py-0.5 rounded text-xs font-bold">Worth Exploring</span></td>
+            <td class="px-4 py-2 text-slate-600">Separation enables independent rollback and testing</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium">Connection pooling</td>
+            <td class="px-4 py-2">GORM defaults</td>
+            <td class="px-4 py-2">Explicit pool config (max_open=25, max_idle=10, lifetime=5m)</td>
+            <td class="text-center px-4 py-2"><span class="badge-worth px-2 py-0.5 rounded text-xs font-bold">Worth Exploring</span></td>
+            <td class="px-4 py-2 text-slate-600">Sync jobs + API traffic compete for connections</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium">Pagination</td>
+            <td class="px-4 py-2">OFFSET/LIMIT only</td>
+            <td class="px-4 py-2">Keyset/cursor pagination for large tables</td>
+            <td class="text-center px-4 py-2"><span class="badge-spec px-2 py-0.5 rounded text-xs font-bold">Speculative</span></td>
+            <td class="px-4 py-2 text-slate-600">Current table sizes may not warrant this yet</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 font-medium">Schema linting</td>
+            <td class="px-4 py-2">Manual review</td>
+            <td class="px-4 py-2">pgschema or squawk for CI checks</td>
+            <td class="text-center px-4 py-2"><span class="badge-worth px-2 py-0.5 rounded text-xs font-bold">Worth Exploring</span></td>
+            <td class="px-4 py-2 text-slate-600">Catch missing indexes, naming issues, destructive changes in CI</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 9. PRIORITIZED ACTION ITEMS                                  -->
+  <!-- ============================================================ -->
+  <section>
+    <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+      <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+      9. Prioritized Action Items
+    </h2>
+
+    <!-- High Impact, Low Effort -->
+    <div class="bg-white border border-slate-200 rounded-lg p-5 mb-4">
+      <h3 class="text-sm font-bold text-emerald-700 uppercase tracking-wider mb-3">High Impact, Low Effort (Do First)</h3>
+      <ol class="space-y-2 text-sm">
+        <li class="flex items-start gap-2">
+          <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">1</span>
+          <span class="text-slate-700">Remove defaultDatabaseURL() — fail fast when DATABASE_URL not set <span class="text-slate-400">(~1 hr)</span></span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">2</span>
+          <span class="text-slate-700">Remove hardcoded DSN from cmd/seed_delegation_pairs and cmd/fix_migration — require DATABASE_URL env <span class="text-slate-400">(~30 min)</span></span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">3</span>
+          <span class="text-slate-700">Rotate all exposed database passwords immediately <span class="text-slate-400">(~30 min)</span></span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">4</span>
+          <span class="text-slate-700">Convert SetScopeApps loop to batch INSERT <span class="text-slate-400">(~30 min)</span></span>
+        </li>
+      </ol>
+    </div>
+
+    <!-- High Impact, Medium Effort -->
+    <div class="bg-white border border-slate-200 rounded-lg p-5 mb-4">
+      <h3 class="text-sm font-bold text-blue-700 uppercase tracking-wider mb-3">High Impact, Medium Effort</h3>
+      <ol class="space-y-2 text-sm">
+        <li class="flex items-start gap-2">
+          <span class="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">5</span>
+          <span class="text-slate-700">Add CHECK constraints on all status VARCHAR columns (roles, permissions, applications, ou_role_mappings, abac_delegations, user_abac_assignments) <span class="text-slate-400">(~2 hrs)</span></span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">6</span>
+          <span class="text-slate-700">Resolve roles dual-status: choose either deleted_at OR status, not both <span class="text-slate-400">(~3 hrs)</span></span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">7</span>
+          <span class="text-slate-700">Add .gitattributes or pre-commit hook to prevent credentials in Go files <span class="text-slate-400">(~1 hr)</span></span>
+        </li>
+      </ol>
+    </div>
+
+    <!-- Medium Impact, Medium Effort -->
+    <div class="bg-white border border-slate-200 rounded-lg p-5">
+      <h3 class="text-sm font-bold text-amber-700 uppercase tracking-wider mb-3">Medium Impact, Medium Effort</h3>
+      <ol class="space-y-2 text-sm">
+        <li class="flex items-start gap-2">
+          <span class="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">8</span>
+          <span class="text-slate-700">Standardize soft-delete strategy across all tables (pick one pattern, migrate others) <span class="text-slate-400">(~1 day)</span></span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">9</span>
+          <span class="text-slate-700">Add explicit GORM connection pool configuration <span class="text-slate-400">(~1 hr)</span></span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">10</span>
+          <span class="text-slate-700">Move test user seeds (000033) behind a feature flag or separate seed-only migration path <span class="text-slate-400">(~2 hrs)</span></span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">11</span>
+          <span class="text-slate-700">Document ENUM rollback limitation and create recreation procedure for emergency rollback <span class="text-slate-400">(~2 hrs)</span></span>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 10. RECOMMENDED IMPLEMENTATION ORDER                         -->
+  <!-- ============================================================ -->
+  <section class="deep text-white rounded-xl p-8 space-y-6">
+    <h2 class="text-xl font-bold mb-4">Recommended Implementation Order</h2>
+
+    <div>
+      <h3 class="text-sm font-bold text-emerald-400 uppercase tracking-wider mb-2">Phase 1: Quick Wins (Week 1)</h3>
+      <ul class="text-sm text-slate-300 space-y-1">
+        <li>&#10003; Remove all hardcoded credentials (items 1–3)</li>
+        <li>&#10003; Convert SetScopeApps to batch INSERT (item 4)</li>
+        <li>&#10003; Add .gitattributes for credential scanning (item 7)</li>
+      </ul>
+      <p class="text-xs text-slate-500 mt-1">Est. effort: ~3 hrs</p>
+    </div>
+
+    <div>
+      <h3 class="text-sm font-bold text-sky-400 uppercase tracking-wider mb-2">Phase 2: Schema Hardening (Weeks 2–3)</h3>
+      <ul class="text-sm text-slate-300 space-y-1">
+        <li>&#9679; Add CHECK constraints on status columns (item 5)</li>
+        <li>&#9679; Resolve roles dual-status (item 6)</li>
+        <li>&#9679; Add GORM connection pool configuration (item 9)</li>
+      </ul>
+      <p class="text-xs text-slate-500 mt-1">Est. effort: ~6 hrs</p>
+    </div>
+
+    <div>
+      <h3 class="text-sm font-bold text-amber-400 uppercase tracking-wider mb-2">Phase 3: Consistency &amp; Polish (Weeks 4–5)</h3>
+      <ul class="text-sm text-slate-300 space-y-1">
+        <li>&#9679; Standardize soft-delete strategy (item 8)</li>
+        <li>&#9679; Move test seeds behind flag (item 10)</li>
+        <li>&#9679; Document ENUM rollback procedure (item 11)</li>
+      </ul>
+      <p class="text-xs text-slate-500 mt-1">Est. effort: ~1.5 days</p>
+    </div>
+
+    <div>
+      <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Phase 4: Ongoing</h3>
+      <ul class="text-sm text-slate-300 space-y-1">
+        <li>&#9711; Consider cursor-based pagination when tables grow</li>
+        <li>&#9711; Add schema linting to CI pipeline</li>
+        <li>&#9711; Evaluate connection pooler (PgBouncer) for production</li>
+      </ul>
+    </div>
+
+    <div class="text-sm text-slate-400 border-t border-slate-600 pt-4">
+      Total estimated effort: <strong class="text-white">~2.5 days</strong> for Phases 1–3
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 11. CONSTRAINT VIOLATION MAP (Mermaid)                       -->
+  <!-- ============================================================ -->
+  <section>
+    <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+      <span class="w-3 h-3 rounded-full bg-red-500"></span>
+      11. Constraint Violation Map
+    </h2>
+    <div class="bg-white border border-slate-200 rounded-lg p-4">
+      <div class="mermaid">
+graph TD
+    subgraph "Issues"
+        DUAL["roles<br/>DUAL STATUS<br/>(deleted_at + status)"]
+        NOCHECK1["roles.status<br/>NO CHECK CONSTRAINT"]
+        NOCHECK2["permissions.status<br/>NO CHECK CONSTRAINT"]
+        NOCHECK3["applications.status<br/>NO CHECK CONSTRAINT"]
+        NOCHECK4["ou_role_mappings.status<br/>NO CHECK CONSTRAINT"]
+        NOCHECK5["abac_delegations.status<br/>NO CHECK CONSTRAINT"]
+        NOCHECK6["user_abac_assignments.status<br/>NO CHECK CONSTRAINT"]
+        ENUM["sync_type ENUM<br/>IRREVERSIBLE MIGRATION"]
+        CREDS["config.go<br/>HARDCODED CREDS"]
+        CREDS2["seed_delegation_pairs<br/>HARDCODED CREDS"]
+        CREDS3["fix_migration<br/>HARDCODED CREDS"]
+    end
+
+    style DUAL fill:#fef2f2,stroke:#dc2626,color:#991b1b
+    style NOCHECK1 fill:#fff7ed,stroke:#ea580c,color:#9a3412
+    style NOCHECK2 fill:#fff7ed,stroke:#ea580c,color:#9a3412
+    style NOCHECK3 fill:#fff7ed,stroke:#ea580c,color:#9a3412
+    style NOCHECK4 fill:#fff7ed,stroke:#ea580c,color:#9a3412
+    style NOCHECK5 fill:#fff7ed,stroke:#ea580c,color:#9a3412
+    style NOCHECK6 fill:#fff7ed,stroke:#ea580c,color:#9a3412
+    style ENUM fill:#fef2f2,stroke:#dc2626,color:#991b1b
+    style CREDS fill:#fef2f2,stroke:#dc2626,color:#991b1b
+    style CREDS2 fill:#fef2f2,stroke:#dc2626,color:#991b1b
+    style CREDS3 fill:#fef2f2,stroke:#dc2626,color:#991b1b
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 12. METRIC VIOLATIONS SUMMARY                                -->
+  <!-- ============================================================ -->
+  <section>
+    <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+      <span class="w-3 h-3 rounded-full bg-orange-500"></span>
+      12. Metric Violations Summary
+    </h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+        <thead class="bg-slate-100">
+          <tr>
+            <th class="text-left px-4 py-2 font-semibold">Metric</th>
+            <th class="text-left px-4 py-2 font-semibold">File / Area</th>
+            <th class="text-right px-4 py-2 font-semibold">Actual</th>
+            <th class="text-right px-4 py-2 font-semibold">Threshold</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr>
+            <td class="px-4 py-2">Hardcoded credentials</td>
+            <td class="px-4 py-2 font-mono text-xs">config.go, cmd/*/main.go</td>
+            <td class="text-right px-4 py-2 text-red-600 font-bold">3</td>
+            <td class="text-right px-4 py-2">0</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2">Soft-delete strategies</td>
+            <td class="px-4 py-2 font-mono text-xs">Schema-wide</td>
+            <td class="text-right px-4 py-2 text-red-600 font-bold">3</td>
+            <td class="text-right px-4 py-2">1</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2">Tables without CHECK on status</td>
+            <td class="px-4 py-2 font-mono text-xs">roles, permissions, applications, etc.</td>
+            <td class="text-right px-4 py-2 text-red-600 font-bold">6</td>
+            <td class="text-right px-4 py-2">0</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2">Irreversible migrations</td>
+            <td class="px-4 py-2 font-mono text-xs">000050_extend_sync_type_enum</td>
+            <td class="text-right px-4 py-2 text-red-600 font-bold">1</td>
+            <td class="text-right px-4 py-2">0</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2">Data+DDL mixed migrations</td>
+            <td class="px-4 py-2 font-mono text-xs">migrations/</td>
+            <td class="text-right px-4 py-2 text-amber-600 font-bold">13</td>
+            <td class="text-right px-4 py-2">0</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2">N+1 query patterns</td>
+            <td class="px-4 py-2 font-mono text-xs">manage_user_repository.go</td>
+            <td class="text-right px-4 py-2 text-amber-600 font-bold">1</td>
+            <td class="text-right px-4 py-2">0</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2">Index-to-table ratio</td>
+            <td class="px-4 py-2 font-mono text-xs">Schema-wide</td>
+            <td class="text-right px-4 py-2 text-emerald-600 font-bold">5.2</td>
+            <td class="text-right px-4 py-2">&ge; 1.0</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2">SELECT * usage</td>
+            <td class="px-4 py-2 font-mono text-xs">repository/</td>
+            <td class="text-right px-4 py-2 text-emerald-600 font-bold">0</td>
+            <td class="text-right px-4 py-2">0</td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2">FK coverage (tables with FKs)</td>
+            <td class="px-4 py-2 font-mono text-xs">Schema-wide</td>
+            <td class="text-right px-4 py-2 text-emerald-600 font-bold">15/17</td>
+            <td class="text-right px-4 py-2">&ge; 90%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="text-center text-xs text-slate-400 pt-8 border-t border-slate-200">
+    <p>Generated 2026-05-26 &middot; Database Audit Report &middot; permission-center-api04</p>
+  </footer>
+
+</main>
+
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+</script>
+</body>
+</html>
