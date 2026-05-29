@@ -1,0 +1,1490 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Code Audit Report — permission-center-web02</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+    </script>
+    <style>
+      .seam { stroke-dasharray: 4 4; }
+      .leak { stroke: #dc2626; }
+      .deep { background: linear-gradient(135deg, #0f172a, #1e293b); }
+      .badge-strong { background: #059669; color: white; }
+      .badge-worth { background: #d97706; color: white; }
+      .badge-spec { background: #64748b; color: white; }
+      .grade-a { background: #059669; color: white; }
+      .grade-b { background: #2563eb; color: white; }
+      .grade-c { background: #d97706; color: white; }
+      .grade-d { background: #ea580c; color: white; }
+      .grade-f { background: #dc2626; color: white; }
+      .layer-presentation { border-left-color: #6366f1; }
+      .layer-application { border-left-color: #8b5cf6; }
+      .layer-domain { border-left-color: #0ea5e9; }
+      .layer-infrastructure { border-left-color: #f59e0b; }
+      .collapsible-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+      .collapsible-content.open { max-height: 5000px; transition: max-height 0.5s ease-in; }
+      details summary { cursor: pointer; list-style: none; }
+      details summary::-webkit-details-marker { display: none; }
+      details[open] .chevron { transform: rotate(90deg); }
+      .chevron { transition: transform 0.2s; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+      <!-- HEADER -->
+      <header class="space-y-6">
+        <div>
+          <p class="text-xs uppercase tracking-wider text-slate-400 mb-1">Code Audit Report</p>
+          <h1 class="text-3xl font-bold text-slate-900">permission-center-web02</h1>
+          <p class="text-sm text-slate-500 mt-1">2026-05-29 &middot; 123 source files &middot; ~28,000 lines</p>
+        </div>
+
+        <!-- Overall Grade -->
+        <div class="flex items-center gap-3">
+          <span class="text-sm text-slate-600 font-medium">Overall Grade:</span>
+          <span class="grade-d px-4 py-1.5 rounded-lg text-xl font-bold">D+</span>
+          <span class="text-sm text-slate-500">Strong TypeScript and modern stack but critical gaps: Docker runs dev server, 1,138 inline styles, 28+ god files, zero unit tests</span>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+          <div class="bg-white rounded-lg border border-slate-200 p-3 text-center">
+            <p class="text-2xl font-bold text-slate-800">123</p>
+            <p class="text-slate-500 uppercase tracking-wider">Source Files</p>
+          </div>
+          <div class="bg-white rounded-lg border border-slate-200 p-3 text-center">
+            <p class="text-2xl font-bold text-slate-800">28K</p>
+            <p class="text-slate-500 uppercase tracking-wider">Lines of Code</p>
+          </div>
+          <div class="bg-white rounded-lg border border-slate-200 p-3 text-center">
+            <p class="text-2xl font-bold text-slate-800">39</p>
+            <p class="text-slate-500 uppercase tracking-wider">Custom Hooks</p>
+          </div>
+          <div class="bg-white rounded-lg border border-slate-200 p-3 text-center">
+            <p class="text-2xl font-bold text-red-600">0</p>
+            <p class="text-slate-500 uppercase tracking-wider">Unit Tests</p>
+          </div>
+          <div class="bg-white rounded-lg border border-slate-200 p-3 text-center">
+            <p class="text-2xl font-bold text-red-600">1,138</p>
+            <p class="text-slate-500 uppercase tracking-wider">Inline Styles</p>
+          </div>
+        </div>
+
+        <!-- Stack -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          <div class="bg-white rounded-lg border border-slate-200 p-3">
+            <div class="font-semibold text-slate-700">Stack</div>
+            <div class="text-slate-500 mt-1">React 18.3 &middot; TS 5.7 &middot; Vite 8</div>
+          </div>
+          <div class="bg-white rounded-lg border border-slate-200 p-3">
+            <div class="font-semibold text-slate-700">State</div>
+            <div class="text-slate-500 mt-1">Zustand 5 (auth) + useState/useEffect</div>
+          </div>
+          <div class="bg-white rounded-lg border border-slate-200 p-3">
+            <div class="font-semibold text-slate-700">Routing</div>
+            <div class="text-slate-500 mt-1">react-router v7 (Routes/Route)</div>
+          </div>
+          <div class="bg-white rounded-lg border border-slate-200 p-3">
+            <div class="font-semibold text-slate-700">UI Library</div>
+            <div class="text-slate-500 mt-1">Apollo UI &middot; Tailwind 3.4 &middot; Apollo Client 3</div>
+          </div>
+        </div>
+      </header>
+
+      <!-- EXECUTIVE SUMMARY -->
+      <section>
+        <h2 class="text-xl font-bold mb-4">Executive Summary</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Critical Findings -->
+          <div class="bg-white border border-red-200 rounded-lg p-5 space-y-3">
+            <h3 class="text-sm font-bold text-red-700 uppercase tracking-wider">Top 3 Critical Findings</h3>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-start gap-2">
+                <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">1</span>
+                <span class="text-slate-700"><strong>Dockerfile runs dev server in production</strong> — Single-stage Node 22 Alpine container executing <code class="text-xs bg-slate-100 px-1">npm run dev</code>. No nginx, no static file serving, no optimization. Development-only HMR running in production container.</span>
+              </div>
+              <div class="flex items-start gap-2">
+                <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">2</span>
+                <span class="text-slate-700"><strong>28+ god files (&gt;300 lines)</strong> — AddAccessAssignmentModal.tsx at 1,406 lines, EmployeesPage.tsx at 978 lines, MappingTab.tsx at 939 lines. Components handle data fetching, filtering, validation, transformation, and rendering in single files. 4.7x over threshold.</span>
+              </div>
+              <div class="flex items-start gap-2">
+                <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">3</span>
+                <span class="text-slate-700"><strong>1,138 inline <code class="text-xs bg-slate-100 px-1">style={{}}</code> objects</strong> across the codebase — 43% more than web-03. Three competing styling systems (Tailwind, Apollo CSS variables, inline). Cannot be overridden by CSS or cached by React.</span>
+              </div>
+            </div>
+          </div>
+          <!-- Quick Wins -->
+          <div class="bg-white border border-emerald-200 rounded-lg p-5 space-y-3">
+            <h3 class="text-sm font-bold text-emerald-700 uppercase tracking-wider">Top 3 Quick Wins</h3>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-start gap-2">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">1</span>
+                <span class="text-slate-700"><strong>Fix Dockerfile to multi-stage build</strong> — Replace dev server with <code class="text-xs bg-slate-100 px-1">npm run build</code> + nginx-alpine. ~2 hours. Critical production issue.</span>
+              </div>
+              <div class="flex items-start gap-2">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">2</span>
+                <span class="text-slate-700"><strong>Remove mock data from production imports</strong> — App.tsx imports ROLES, PERMISSIONS, AUTO_MAPPINGS from <code class="text-xs bg-slate-100 px-1">data/mock.ts</code>. Remove or gate behind <code class="text-xs bg-slate-100 px-1">import.meta.env.DEV</code>. ~1 hour.</span>
+              </div>
+              <div class="flex items-start gap-2">
+                <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">3</span>
+                <span class="text-slate-700"><strong>Add vitest + @testing-library/react</strong> — Start with 39 custom hooks (pure logic, clear inputs/outputs). ~2-3 days for initial coverage.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- LAYER GRADES OVERVIEW -->
+      <section>
+        <h2 class="text-xl font-bold mb-4">Layer Grades Overview</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+            <thead class="bg-slate-100">
+              <tr>
+                <th class="text-left px-4 py-2 font-semibold">Layer</th>
+                <th class="text-center px-4 py-2 font-semibold">Grade</th>
+                <th class="text-right px-4 py-2 font-semibold">Files</th>
+                <th class="text-right px-4 py-2 font-semibold">Lines</th>
+                <th class="text-center px-4 py-2 font-semibold">Anti-patterns</th>
+                <th class="text-center px-4 py-2 font-semibold">Healthy</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr class="border-l-4 layer-presentation">
+                <td class="px-4 py-2 font-medium text-indigo-700">Project Setup & Config</td>
+                <td class="text-center px-4 py-2"><span class="grade-c px-2 py-0.5 rounded text-xs font-bold">C+</span></td>
+                <td class="text-right px-4 py-2">10</td>
+                <td class="text-right px-4 py-2">~450</td>
+                <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">3</span></td>
+                <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">5</span></td>
+              </tr>
+              <tr class="border-l-4 layer-domain">
+                <td class="px-4 py-2 font-medium text-sky-700">Types & Data Models</td>
+                <td class="text-center px-4 py-2"><span class="grade-c px-2 py-0.5 rounded text-xs font-bold">C+</span></td>
+                <td class="text-right px-4 py-2">2</td>
+                <td class="text-right px-4 py-2">~860</td>
+                <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">2</span></td>
+                <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">3</span></td>
+              </tr>
+              <tr class="border-l-4 layer-infrastructure">
+                <td class="px-4 py-2 font-medium text-amber-700">API Layer</td>
+                <td class="text-center px-4 py-2"><span class="grade-c px-2 py-0.5 rounded text-xs font-bold">C+</span></td>
+                <td class="text-right px-4 py-2">6</td>
+                <td class="text-right px-4 py-2">~456</td>
+                <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">3</span></td>
+                <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">3</span></td>
+              </tr>
+              <tr class="border-l-4 layer-application">
+                <td class="px-4 py-2 font-medium text-violet-700">Hooks (Data Fetching)</td>
+                <td class="text-center px-4 py-2"><span class="grade-c px-2 py-0.5 rounded text-xs font-bold">C+</span></td>
+                <td class="text-right px-4 py-2">39</td>
+                <td class="text-right px-4 py-2">~5,000</td>
+                <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">3</span></td>
+                <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">4</span></td>
+              </tr>
+              <tr class="border-l-4 layer-presentation">
+                <td class="px-4 py-2 font-medium text-indigo-700">Shared Components</td>
+                <td class="text-center px-4 py-2"><span class="grade-c px-2 py-0.5 rounded text-xs font-bold">C+</span></td>
+                <td class="text-right px-4 py-2">13</td>
+                <td class="text-right px-4 py-2">~2,800</td>
+                <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">3</span></td>
+                <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">4</span></td>
+              </tr>
+              <tr class="border-l-4 layer-presentation">
+                <td class="px-4 py-2 font-medium text-indigo-700">Modal Components</td>
+                <td class="text-center px-4 py-2"><span class="grade-d px-2 py-0.5 rounded text-xs font-bold">D+</span></td>
+                <td class="text-right px-4 py-2">28</td>
+                <td class="text-right px-4 py-2">~9,500</td>
+                <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">4</span></td>
+                <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">2</span></td>
+              </tr>
+              <tr class="border-l-4 layer-presentation">
+                <td class="px-4 py-2 font-medium text-indigo-700">Pages & Tabs</td>
+                <td class="text-center px-4 py-2"><span class="grade-d px-2 py-0.5 rounded text-xs font-bold">D</span></td>
+                <td class="text-right px-4 py-2">24</td>
+                <td class="text-right px-4 py-2">~8,200</td>
+                <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">5</span></td>
+                <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">3</span></td>
+              </tr>
+              <tr class="border-l-4 layer-application">
+                <td class="px-4 py-2 font-medium text-violet-700">State Management & Routing</td>
+                <td class="text-center px-4 py-2"><span class="grade-b px-2 py-0.5 rounded text-xs font-bold">B</span></td>
+                <td class="text-right px-4 py-2">3</td>
+                <td class="text-right px-4 py-2">~300</td>
+                <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">1</span></td>
+                <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">4</span></td>
+              </tr>
+              <tr class="border-l-4 layer-presentation">
+                <td class="px-4 py-2 font-medium text-indigo-700">Styling</td>
+                <td class="text-center px-4 py-2"><span class="grade-c px-2 py-0.5 rounded text-xs font-bold">C-</span></td>
+                <td class="text-right px-4 py-2">4</td>
+                <td class="text-right px-4 py-2">~2,700</td>
+                <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">3</span></td>
+                <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">3</span></td>
+              </tr>
+              <tr class="border-l-4 layer-infrastructure">
+                <td class="px-4 py-2 font-medium text-amber-700">Testing</td>
+                <td class="text-center px-4 py-2"><span class="grade-f px-2 py-0.5 rounded text-xs font-bold">F</span></td>
+                <td class="text-right px-4 py-2">2</td>
+                <td class="text-right px-4 py-2">~500</td>
+                <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">3</span></td>
+                <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">2</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- LAYER 1: PROJECT SETUP -->
+      <section>
+        <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+          <span class="w-3 h-3 rounded-full bg-indigo-500"></span>
+          1. Project Setup & Config
+          <span class="grade-c px-2 py-0.5 rounded text-xs font-bold ml-auto">C+</span>
+        </h2>
+        <div class="text-xs font-mono text-slate-500 space-y-0.5 mb-3">
+          <div>vite.config.ts <span class="text-slate-400">(React plugin, @/ alias, proxy /api)</span></div>
+          <div>tsconfig.json + tsconfig.app.json + tsconfig.node.json <span class="text-slate-400">(composite, strict: true, ES2020)</span></div>
+          <div>tailwind.config.js <span class="text-slate-400">(Apollo color tokens, IBM Plex Sans Thai)</span></div>
+          <div>postcss.config.js <span class="text-slate-400">(Tailwind + autoprefixer)</span></div>
+          <div>Dockerfile <span class="text-slate-400">(single-stage: node-22-alpine, runs dev server)</span></div>
+          <div>.gitlab-ci.yml <span class="text-slate-400">(GCP Cloud Run deployment pipeline)</span></div>
+          <div>package.json <span class="text-slate-400">(React 18.3, Vite 8, Zustand 5, Apollo Client 3, react-router-dom 7)</span></div>
+          <div>playwright.config.ts <span class="text-slate-400">(Chromium E2E, base URL configurable)</span></div>
+        </div>
+        <div class="space-y-3">
+          <details open>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Anti-patterns
+              <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs ml-auto">3</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-red-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium">Critical</span>
+                  <span class="font-medium">Docker runs dev server in production</span>
+                </div>
+                <p class="text-slate-600">Single-stage <code class="text-xs bg-slate-100 px-1">Dockerfile</code> runs <code class="text-xs bg-slate-100 px-1">npm run dev -- --host 0.0.0.0</code> on port 8080. No nginx, no static file serving, no production optimization. Vite dev server with HMR running in production container — not suitable for production traffic.</p>
+                <pre class="text-xs bg-slate-50 border border-slate-200 rounded p-2 mt-2 text-slate-700">FROM node:22-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+EXPOSE 8080
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]</pre>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                  <span class="font-medium">No ESLint or Prettier configured</span>
+                </div>
+                <p class="text-slate-600">No code quality tooling in <code class="text-xs bg-slate-100 px-1">package.json</code> scripts. Code style relies on team discipline. 2 <code class="text-xs bg-slate-100 px-1">eslint-disable</code> comments suggest linting was attempted but not committed to.</p>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                  <span class="font-medium">No env validation (zod or similar)</span>
+                </div>
+                <p class="text-slate-600">Environment variables used directly without validation. Missing <code class="text-xs bg-slate-100 px-1">VITE_API_BASE_URL</code> defaults to <code class="text-xs bg-slate-100 px-1">localhost:8080</code> — silent failure in production if misconfigured.</p>
+              </div>
+            </div>
+          </details>
+          <details>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Healthy Patterns
+              <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs ml-auto">5</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Modern stack</span>
+                <span class="text-slate-600"> — Vite 8, TypeScript 5.7 strict mode, React 18.3, Zustand 5. All current-generation tools.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Path aliases</span>
+                <span class="text-slate-600"> — <code class="text-xs bg-slate-100 px-1">@/</code> alias configured in both Vite and TypeScript. Clean imports throughout.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Tailwind CSS with Apollo tokens</span>
+                <span class="text-slate-600"> — Custom Tailwind colors mapped to Apollo CSS variables. Good integration of design system.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Playwright E2E configured</span>
+                <span class="text-slate-600"> — Chromium-based E2E test setup with configurable base URL and auth fixture. Foundation exists.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">CI/CD with Cloud Run</span>
+                <span class="text-slate-600"> — GitLab CI pipeline for GCP Cloud Run deployment.</span>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- LAYER 2: TYPES -->
+      <section>
+        <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+          <span class="w-3 h-3 rounded-full bg-sky-500"></span>
+          2. Types & Data Models
+          <span class="grade-c px-2 py-0.5 rounded text-xs font-bold ml-auto">C+</span>
+        </h2>
+        <div class="text-xs font-mono text-slate-500 space-y-0.5 mb-3">
+          <div>src/types.ts <span class="text-slate-400">(855 lines — App, Role, Permission, Assignment, AutoMapping, OUAppMapping, Employee, Delegation, ABAC, PCUser, etc.)</span></div>
+          <div>src/icons.ts <span class="text-slate-400">(Icon SVG component exports)</span></div>
+        </div>
+        <div class="space-y-3">
+          <details open>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Anti-patterns
+              <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs ml-auto">2</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-orange-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span>
+                  <span class="font-medium">855-line monolithic types.ts</span>
+                </div>
+                <p class="text-slate-600"><code class="text-xs bg-slate-100 px-1">types.ts</code> contains all domain types in a single file: RBAC (App, Role, Permission), ABAC (Attribute, Group, AccessAssignment), Employee directory, Delegation, PC Users, API responses, validation types. 2.9x over a reasonable 300-line threshold. Should be split into per-feature type modules.</p>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                  <span class="font-medium">No API response type co-location</span>
+                </div>
+                <p class="text-slate-600">API response types (RoleResponse, PermissionResponse) live in global <code class="text-xs bg-slate-100 px-1">types.ts</code> rather than alongside the API hooks or endpoints that consume them.</p>
+              </div>
+            </div>
+          </details>
+          <details>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Healthy Patterns
+              <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs ml-auto">3</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Pure domain layer</span>
+                <span class="text-slate-600"> — <code class="text-xs bg-slate-100 px-1">types.ts</code> has zero imports. No side effects, no async, no DOM. Clean domain model.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Comprehensive type coverage</span>
+                <span class="text-slate-600"> — Every API request/response typed. ABAC Phase 4 types (Attribute, Group, AccessEntry) present alongside RBAC types. Covers the full permission management domain.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Strong type safety</span>
+                <span class="text-slate-600"> — Only 16 <code class="text-xs bg-slate-100 px-1">: any</code> across 28,075 lines. TypeScript strict mode enabled. camelCase (frontend) vs snake_case (API) properly handled.</span>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- LAYER 3: API LAYER -->
+      <section>
+        <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+          <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+          3. API Layer
+          <span class="grade-c px-2 py-0.5 rounded text-xs font-bold ml-auto">C+</span>
+        </h2>
+        <div class="text-xs font-mono text-slate-500 space-y-0.5 mb-3">
+          <div>src/lib/api.ts <span class="text-slate-400">(75 lines — fetch wrapper with typed errors)</span></div>
+          <div>src/apollo/client.ts <span class="text-slate-400">(40 lines — Apollo Client with RestLink)</span></div>
+          <div>src/configs/envConstants.ts <span class="text-slate-400">(15 lines — VITE env vars)</span></div>
+          <div>src/configs/azureAuthConstants.ts <span class="text-slate-400">(Azure AD config)</span></div>
+          <div>src/utils/pcToken.ts <span class="text-slate-400">(42 lines — dev JWT token builder)</span></div>
+          <div>src/data/mock.ts <span class="text-slate-400">(254 lines — hardcoded mock data)</span></div>
+        </div>
+        <div class="space-y-3">
+          <details open>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Anti-patterns
+              <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs ml-auto">3</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-orange-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span>
+                  <span class="font-medium">Dual API approach (REST fetch + Apollo Client)</span>
+                </div>
+                <p class="text-slate-600">Two HTTP clients in parallel: <code class="text-xs bg-slate-100 px-1">lib/api.ts</code> (native fetch wrapper) and <code class="text-xs bg-slate-100 px-1">apollo/client.ts</code> (Apollo Client with RestLink). Different auth header injection patterns. No clear convention for which to use when.</p>
+              </div>
+              <div class="bg-white border border-orange-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span>
+                  <span class="font-medium">Dev bypass auth in production code paths</span>
+                </div>
+                <p class="text-slate-600"><code class="text-xs bg-slate-100 px-1">lib/api.ts</code> checks <code class="text-xs bg-slate-100 px-1">VITE_DEV_BYPASS</code> and <code class="text-xs bg-slate-100 px-1">VITE_DEV_TOKEN</code> to skip MSAL auth. <code class="text-xs bg-slate-100 px-1">utils/pcToken.ts</code> builds unsigned JWT (alg=none) for development. Both paths exist in production builds — risk if env vars leak.</p>
+                <pre class="text-xs bg-slate-50 border border-slate-200 rounded p-2 mt-2 text-slate-700">const devBypass = import.meta.env.VITE_DEV_BYPASS === 'true'
+const devToken = import.meta.env.VITE_DEV_TOKEN as string | undefined
+
+function getAuthHeader(): Record&lt;string, string&gt; {
+  let token: string | undefined
+  if (devBypass) {
+    token = devToken || ''
+  } else {
+    token = useAuthStore.getState().token || undefined
+  }
+  return token !== undefined ? { Authorization: `Bearer ${token}` } : {}
+}</pre>
+              </div>
+              <div class="bg-white border border-red-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium">Critical</span>
+                  <span class="font-medium">Mock data imported in production paths</span>
+                </div>
+                <p class="text-slate-600"><code class="text-xs bg-slate-100 px-1">App.tsx</code> imports <code class="text-xs bg-slate-100 px-1">ROLES, PERMISSIONS, AUTO_MAPPINGS</code> from <code class="text-xs bg-slate-100 px-1">data/mock.ts</code>. These are used for sidebar counts and passed as props. Mock data mixed with real API data in production.</p>
+                <pre class="text-xs bg-slate-50 border border-slate-200 rounded p-2 mt-2 text-slate-700">import { ROLES, PERMISSIONS, AUTO_MAPPINGS } from '@/data/mock'
+// ...
+const counts = {
+  roles: ROLES.length,
+  permissions: PERMISSIONS.length,
+  autoMappings: AUTO_MAPPINGS.length,
+}</pre>
+              </div>
+            </div>
+          </details>
+          <details>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Healthy Patterns
+              <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs ml-auto">3</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Clean fetch wrapper</span>
+                <span class="text-slate-600"> — Typed <code class="text-xs bg-slate-100 px-1">api.get/post/put/patch/delete</code> methods. Custom <code class="text-xs bg-slate-100 px-1">ApiError</code> type with message, code, and dynamic fields. Good error handling with Thai messages.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Centralized auth header injection</span>
+                <span class="text-slate-600"> — <code class="text-xs bg-slate-100 px-1">getAuthHeader()</code> reads from Zustand store. Automatic Bearer token attachment on all requests.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">No hardcoded secrets</span>
+                <span class="text-slate-600"> — All config via VITE_ environment variables. Azure AD credentials from env. API URL defaults to localhost for development only.</span>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- LAYER 4: HOOKS -->
+      <section>
+        <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+          <span class="w-3 h-3 rounded-full bg-violet-500"></span>
+          4. Hooks (Data Fetching)
+          <span class="grade-c px-2 py-0.5 rounded text-xs font-bold ml-auto">C+</span>
+        </h2>
+        <div class="text-xs font-mono text-slate-500 space-y-0.5 mb-3">
+          <div>src/hooks/ <span class="text-slate-400">(39 custom hooks, ~5,000 lines)</span></div>
+          <div>Largest: useOUMappings.ts <span class="text-slate-400">(288 lines)</span>, usePermissions.ts <span class="text-slate-400">(267 lines)</span>, useEmployees.ts <span class="text-slate-400">(263 lines)</span></div>
+          <div>Auth: authProvider.tsx <span class="text-slate-400">(221 lines — MSAL + idle timer + session)</span>, msalInstance.ts, useAuth.ts, useCurrentUser.ts</div>
+          <div>Data: useApplications.ts, useManageUserStats.ts, useUserSearch.ts, useRoles.ts, useGroups.ts, useActivity.ts, useOuFilters.ts, useAccessAssignments.ts, useAppOptions.ts, useRoleOptions.ts, useEmployeeDirectory.ts, etc.</div>
+        </div>
+        <div class="space-y-3">
+          <details open>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Anti-patterns
+              <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs ml-auto">3</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-orange-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span>
+                  <span class="font-medium">No TanStack Query — manual useState/useEffect data fetching</span>
+                </div>
+                <p class="text-slate-600">All 39 hooks manage loading, error, and data state manually with <code class="text-xs bg-slate-100 px-1">useState</code> + <code class="text-xs bg-slate-100 px-1">useEffect</code>. No caching, no background refetching, no request deduplication, no stale-while-revalidate. Every component remount triggers a fresh API call.</p>
+                <pre class="text-xs bg-slate-50 border border-slate-200 rounded p-2 mt-2 text-slate-700">export function useApplications(search: string, sortBy: string, sortOrder: 'asc'|'desc') {
+  const [apps, setApps] = useState&lt;App[]&gt;([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState&lt;string|null&gt;(null)
+
+  useEffect(() =&gt; {
+    setLoading(true)
+    api.get&lt;AppListResponse&gt;('/api/v1/applications?...')
+      .then(res =&gt; { setApps(res.data); setLoading(false) })
+      .catch(err =&gt; { setError(err.message); setLoading(false) })
+  }, [search, sortBy, sortOrder])
+
+  return { apps, loading, error, refetch: () =&gt; {} }
+}</pre>
+              </div>
+              <div class="bg-white border border-orange-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span>
+                  <span class="font-medium">CRUD hook duplication across 39 hooks</span>
+                </div>
+                <p class="text-slate-600">Every data hook repeats the same pattern: useState for data/loading/error + useEffect for fetch + refetch function. 39 hooks with near-identical boilerplate. A generic factory or TanStack Query would eliminate ~60% of hook code.</p>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                  <span class="font-medium">No query cancellation or abort</span>
+                </div>
+                <p class="text-slate-600">No AbortController usage in fetch hooks. Navigating away from a page doesn't cancel pending requests. Race conditions possible with rapid filter/sort changes.</p>
+              </div>
+            </div>
+          </details>
+          <details>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Healthy Patterns
+              <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs ml-auto">4</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Good hook naming convention</span>
+                <span class="text-slate-600"> — <code class="text-xs bg-slate-100 px-1">useApplications</code>, <code class="text-xs bg-slate-100 px-1">useRoles</code>, <code class="text-xs bg-slate-100 px-1">usePermissions</code>. Clear, descriptive names following React convention.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Comprehensive domain coverage</span>
+                <span class="text-slate-600"> — 39 hooks covering all API endpoints: applications, roles, permissions, employees, delegations, OU mappings, ABAC attributes/groups, audit logs, PC users. No missing data hooks.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Separation of concerns</span>
+                <span class="text-slate-600"> — Business logic in hooks, rendering in components. Each hook encapsulates API call + state management. Good encapsulation.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Virtual scrolling support</span>
+                <span class="text-slate-600"> — <code class="text-xs bg-slate-100 px-1">@tanstack/react-virtual</code> for large data sets (employee directory). Performance-conscious design.</span>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- LAYER 5: SHARED COMPONENTS -->
+      <section>
+        <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+          <span class="w-3 h-3 rounded-full bg-indigo-500"></span>
+          5. Shared Components
+          <span class="grade-c px-2 py-0.5 rounded text-xs font-bold ml-auto">C+</span>
+        </h2>
+        <div class="text-xs font-mono text-slate-500 space-y-0.5 mb-3">
+          <div>src/components/Sidebar.tsx <span class="text-slate-400">(PrimaryRail + SubSidebar navigation)</span></div>
+          <div>src/components/DataTable.tsx <span class="text-slate-400">(generic typed table)</span></div>
+          <div>src/components/MultiSearchableSelect.tsx <span class="text-slate-400">(448 lines — multi-select combobox)</span></div>
+          <div>src/components/SearchableSelect.tsx <span class="text-slate-400">(single-select with search)</span></div>
+          <div>src/components/Pagination.tsx <span class="text-slate-400">(page navigation)</span></div>
+          <div>src/components/SortableTh.tsx, PageHeader.tsx, ToastContainer.tsx</div></div>
+          <div>src/components/RolePermissionGroup.tsx, ActionMenu.tsx</div>
+          <div>src/components/ui.tsx <span class="text-slate-400">(Apollo UI re-exports + wrappers)</span></div>
+          <div>src/components/inputs/* <span class="text-slate-400">(reusable input components)</span></div>
+          <div>src/components/auth/* <span class="text-slate-400">(LoadingAfterRedirect)</span></div>
+        </div>
+        <div class="space-y-3">
+          <details open>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Anti-patterns
+              <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs ml-auto">3</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-orange-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span>
+                  <span class="font-medium">MultiSearchableSelect at 448 lines with inline styles</span>
+                </div>
+                <p class="text-slate-600"><code class="text-xs bg-slate-100 px-1">MultiSearchableSelect.tsx</code> (448 lines) is 1.5x over the 300-line threshold and mixes Tailwind, Apollo CSS variables, and inline styles heavily.</p>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                  <span class="font-medium">No error boundary component</span>
+                </div>
+                <p class="text-slate-600">No React error boundary wrapper anywhere in the application. Runtime errors in any component crash the entire app. Should add at route level.</p>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                  <span class="font-medium">No code splitting / lazy loading</span>
+                </div>
+                <p class="text-slate-600">No <code class="text-xs bg-slate-100 px-1">React.lazy</code> or <code class="text-xs bg-slate-100 px-1">Suspense</code>. All 123 source files eagerly imported in a single bundle. No route-level code splitting despite using react-router.</p>
+              </div>
+            </div>
+          </details>
+          <details>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Healthy Patterns
+              <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs ml-auto">4</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Generic typed DataTable</span>
+                <span class="text-slate-600"> — Reusable data table with sorting, pagination, empty states. Well-designed abstraction used across multiple pages.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">SearchableSelect components</span>
+                <span class="text-slate-600"> — Both single-select and multi-select with search, keyboard navigation. Complex but well-encapsulated UI patterns.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">3-column layout (Rail → SubSidebar → Main)</span>
+                <span class="text-slate-600"> — PrimaryRail for top-level sections, SubSidebar for sub-navigation, Main content area. Clean, app-like navigation pattern.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Toast notification system</span>
+                <span class="text-slate-600"> — Centralized toast with pushToast API. Consistent error/success feedback across all pages and modals.</span>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- LAYER 6: MODALS -->
+      <section>
+        <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+          <span class="w-3 h-3 rounded-full bg-indigo-500"></span>
+          6. Modal Components
+          <span class="grade-d px-2 py-0.5 rounded text-xs font-bold ml-auto">D+</span>
+        </h2>
+        <div class="text-xs font-mono text-slate-500 space-y-0.5 mb-3">
+          <div>src/components/modals/ <span class="text-slate-400">(28 modals, ~9,500 lines)</span></div>
+          <div>Largest: AddAccessAssignmentModal.tsx <span class="text-slate-400">(1,406 lines — role assignment with AD validation)</span></div>
+          <div>Large: DelegationFormModal.tsx <span class="text-slate-400">(828 lines)</span>, OUMappingModal.tsx <span class="text-slate-400">(687 lines)</span>, AutoMappingEditorModal.tsx <span class="text-slate-400">(620 lines)</span></div>
+          <div>Medium: PermissionFormModal.tsx <span class="text-slate-400">(437 lines)</span>, and ~23 more modals</div>
+        </div>
+        <div class="space-y-3">
+          <details open>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Anti-patterns
+              <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs ml-auto">4</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-red-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium">Critical</span>
+                  <span class="font-medium">God modal: AddAccessAssignmentModal.tsx (1,406 lines)</span>
+                </div>
+                <p class="text-slate-600">4.7x over a 300-line threshold. Handles user search with chips, role selection with inline group checkboxes, date pickers, AD validation with Thai error labels, email validation, submission — all in one component. 15+ useState declarations:</p>
+                <pre class="text-xs bg-slate-50 border border-slate-200 rounded p-2 mt-2 text-slate-700">// AddAccessAssignmentModal.tsx — partial state list
+const [emailInput, setEmailInput] = useState('');
+const [searchingUsers, setSearchingUsers] = useState(false);
+const [selectedUsers, setSelectedUsers] = useState&lt;UserSearchResult[]&gt;([]);
+const [selectedAssignments, setSelectedAssignments] = useState&lt;...&gt;([]);
+const [effectiveDate, setEffectiveDate] = useState(todayIso());
+const [expiresDate, setExpiresDate] = useState&lt;string|null&gt;(null);
+const [f1, setF1] = useState&lt;string|null&gt;(null);
+const [showConfirm, setShowConfirm] = useState(false);
+const [isValidating, setIsValidating] = useState(false);
+const [invalidEmails, setInvalidEmails] = useState&lt;InvalidEmailEntry[]&gt;([]);</pre>
+              </div>
+              <div class="bg-white border border-orange-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span>
+                  <span class="font-medium">Manual form state (no form library)</span>
+                </div>
+                <p class="text-slate-600">All 28 modals use <code class="text-xs bg-slate-100 px-1">useState</code> per field with manual validation. No schema validation, no consistent error display pattern. Same boilerplate repeated across every modal.</p>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                  <span class="font-medium">No form validation library</span>
+                </div>
+                <p class="text-slate-600">Validation done with ad-hoc <code class="text-xs bg-slate-100 px-1">if (!name) { setError('...') }</code> checks. No zod, no yup, no formik, no react-hook-form. Inconsistent validation patterns across modals.</p>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                  <span class="font-medium">Inline styles for modal layout</span>
+                </div>
+                <p class="text-slate-600">SectionHeader component uses inline styles for layout instead of Tailwind classes. Pattern repeated across modals:</p>
+                <pre class="text-xs bg-slate-50 border border-slate-200 rounded p-2 mt-2 text-slate-700">style={{
+  fontSize: 11, fontWeight: 600, letterSpacing: '0.06em',
+  textTransform: 'uppercase', color: 'var(--apl-color-gray-smoke-50)',
+  marginBottom: 12, paddingBottom: 4,
+  borderBottom: '1px solid var(--apl-color-gray-smoke-90)',
+}}</pre>
+              </div>
+            </div>
+          </details>
+          <details>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Healthy Patterns
+              <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs ml-auto">2</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Consistent naming convention</span>
+                <span class="text-slate-600"> — <code class="text-xs bg-slate-100 px-1">&lt;Action&gt;&lt;Entity&gt;Modal.tsx</code> pattern. AddAccessAssignmentModal, DelegationFormModal, OUMappingModal, etc. Easy to find the right modal.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Self-contained with AD validation</span>
+                <span class="text-slate-600"> — Modals integrate with Active Directory validation (NOT_FOUND_IN_AD, DISABLED, GRAPH_ERROR) with Thai error labels. Good encapsulation of cross-cutting concern.</span>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- LAYER 7: PAGES -->
+      <section>
+        <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+          <span class="w-3 h-3 rounded-full bg-indigo-500"></span>
+          7. Pages & Tabs
+          <span class="grade-d px-2 py-0.5 rounded text-xs font-bold ml-auto">D</span>
+        </h2>
+        <div class="text-xs font-mono text-slate-500 space-y-0.5 mb-3">
+          <div>src/pages/ <span class="text-slate-400">(13 page files, ~5,600 lines)</span></div>
+          <div>src/pages/tabs/ <span class="text-slate-400">(11 tab files, ~6,400 lines)</span></div>
+          <div>src/App.tsx <span class="text-slate-400">(173 lines — AppShell with routing + ACL bootstrap)</span></div>
+          <div>Largest pages: EmployeesPage.tsx <span class="text-slate-400">(978 lines)</span>, DelegationsPage.tsx <span class="text-slate-400">(592 lines)</span>, MapRolePermissionPage.tsx <span class="text-slate-400">(635 lines)</span></div>
+          <div>Largest tabs: MappingTab.tsx <span class="text-slate-400">(939 lines)</span>, GroupTab.tsx <span class="text-slate-400">(757 lines)</span>, AssignAccessTab.tsx <span class="text-slate-400">(746 lines)</span>, AutoTab.tsx <span class="text-slate-400">(680 lines)</span></div>
+        </div>
+        <div class="space-y-3">
+          <details open>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Anti-patterns
+              <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs ml-auto">5</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-red-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium">Critical</span>
+                  <span class="font-medium">God component: EmployeesPage.tsx (978 lines)</span>
+                </div>
+                <p class="text-slate-600">Handles employee directory with sticky columns, virtual scrolling, multi-column filtering (OU, department, division, office, title, role, app), CSV export, AD-based access control, MenuGuard, and pagination — all in one file. 3.3x over threshold. 20+ useState declarations for UI state alone.</p>
+                <pre class="text-xs bg-slate-50 border border-slate-200 rounded p-2 mt-2 text-slate-700">// EmployeesPage.tsx — column definitions with sticky positioning
+const COLS: ColDef[] = [
+  { key: 'employeeCode', header: 'รหัสพนักงาน', width: 130, sticky: true, stickyLeft: 0 },
+  { key: 'name', header: 'ชื่อพนักงาน', width: 200, sticky: true, stickyLeft: 130 },
+  { key: 'email', header: 'Email', width: 220, sticky: true, stickyLeft: 330, lastSticky: true },
+  { key: 'office', header: 'สำนัก', width: 150 },
+  // ... 10+ more columns
+];</pre>
+              </div>
+              <div class="bg-white border border-red-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium">Critical</span>
+                  <span class="font-medium">God tabs: MappingTab (939), GroupTab (757), AssignAccessTab (746), AutoTab (680)</span>
+                </div>
+                <p class="text-slate-600">Four tab components exceed 680 lines each. All handle data fetching, filtering, inline editing, and rendering in single files. MappingTab alone has 939 lines for role-permission mapping grid.</p>
+              </div>
+              <div class="bg-white border border-red-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium">Critical</span>
+                  <span class="font-medium">1,138 inline style objects across pages and tabs</span>
+                </div>
+                <p class="text-slate-600">Highest inline style density in EmployeesPage (column layout, sticky positioning), MappingTab (grid layout), and AppShell (sidebar sizing). Mix of Tailwind, Apollo CSS variables, and inline styles in the same components.</p>
+              </div>
+              <div class="bg-white border border-orange-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span>
+                  <span class="font-medium">AppShell state-based navigation</span>
+                </div>
+                <p class="text-slate-600"><code class="text-xs bg-slate-100 px-1">App.tsx</code> uses <code class="text-xs bg-slate-100 px-1">useState</code> for section/subItem/openApp instead of URL-based routing for sidebar navigation. Routes exist (<code class="text-xs bg-slate-100 px-1">/login</code>, <code class="text-xs bg-slate-100 px-1">/*</code>) but sidebar navigation is state-driven, not URL-driven. Browser back/forward doesn't track sidebar state.</p>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                  <span class="font-medium">Inline business logic in pages</span>
+                </div>
+                <p class="text-slate-600">Search filtering, sort comparisons, CSV export, and data transformation logic inline in page components instead of extracted to utility functions or hooks.</p>
+              </div>
+            </div>
+          </details>
+          <details>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Healthy Patterns
+              <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs ml-auto">3</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">ProtectedRoute with ACL bootstrap</span>
+                <span class="text-slate-600"> — Proper auth guard calling <code class="text-xs bg-slate-100 px-1">/api/v1/acl/check</code> to upsert user in backend. MSAL authentication + dev bypass mode. Well-structured.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">MenuGuard for permission checking</span>
+                <span class="text-slate-600"> — Permission-aware page rendering with loading state during ACL check. Prevents flash of unauthorized content.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Thai-localized error handling</span>
+                <span class="text-slate-600"> — All pages use toast notifications for error feedback. Thai-localized messages throughout. AD validation with Thai error labels.</span>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- LAYER 8: STATE & ROUTING -->
+      <section>
+        <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+          <span class="w-3 h-3 rounded-full bg-violet-500"></span>
+          8. State Management & Routing
+          <span class="grade-b px-2 py-0.5 rounded text-xs font-bold ml-auto">B</span>
+        </h2>
+        <div class="text-xs font-mono text-slate-500 space-y-0.5 mb-3">
+          <div>src/store/authStore.ts <span class="text-slate-400">(115 lines — Zustand auth state with sessionStorage persistence)</span></div>
+          <div>src/hooks/authProvider.tsx <span class="text-slate-400">(221 lines — MSAL provider + idle timer + session)</span></div>
+          <div>src/App.tsx <span class="text-slate-400">(173 lines — Routes + ProtectedRoute + AppShell)</span></div>
+        </div>
+        <div class="space-y-3">
+          <details open>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Anti-patterns
+              <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs ml-auto">1</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                  <span class="font-medium">AppShell state-driven navigation</span>
+                </div>
+                <p class="text-slate-600">Sidebar navigation uses <code class="text-xs bg-slate-100 px-1">useState</code> for section/subItem/openApp instead of URL params. While react-router handles auth routes, app-level navigation is state-based. Deep linking to specific apps/tabs doesn't work via URL.</p>
+              </div>
+            </div>
+          </details>
+          <details>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Healthy Patterns
+              <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs ml-auto">4</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Zustand for auth state</span>
+                <span class="text-slate-600"> — Minimal API, sessionStorage persistence with <code class="text-xs bg-slate-100 px-1">createJSONStorage</code>, JWT decoding with comprehensive claims (oid, name, email, department, division, title, office, branch, roles, groups). Clean implementation.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">react-router v7 for auth routing</span>
+                <span class="text-slate-600"> — <code class="text-xs bg-slate-100 px-1">/login</code> route for MSAL, <code class="text-xs bg-slate-100 px-1">/*</code> wrapped in ProtectedRoute. Proper redirect to login for unauthenticated users.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Comprehensive MSAL auth provider</span>
+                <span class="text-slate-600"> — Idle timer with session expiry notification, cookie-based session tracking, Graph API profile enrichment, redirect handling. Production-grade auth flow.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Environment-aware session management</span>
+                <span class="text-slate-600"> — Session timeout from env vars, cookie-based last-active tracking, audio notification on session expiry. Well-designed UX for enterprise auth.</span>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- LAYER 9: STYLING -->
+      <section>
+        <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+          <span class="w-3 h-3 rounded-full bg-indigo-500"></span>
+          9. Styling
+          <span class="grade-c px-2 py-0.5 rounded text-xs font-bold ml-auto">C-</span>
+        </h2>
+        <div class="text-xs font-mono text-slate-500 space-y-0.5 mb-3">
+          <div>tailwind.config.js <span class="text-slate-400">(Apollo color tokens as Tailwind colors)</span></div>
+          <div>src/apollo-css/_variables.css <span class="text-slate-400">(CSS custom properties from Apollo design system)</span></div>
+          <div>src/apollo-css/index.css <span class="text-slate-400">(Apollo UI styles)</span></div>
+          <div>src/index.css <span class="text-slate-400">(Tailwind directives + app shell styles)</span></div>
+        </div>
+        <div class="space-y-3">
+          <details open>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Anti-patterns
+              <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs ml-auto">3</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-red-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium">Critical</span>
+                  <span class="font-medium">1,138 inline style objects</span>
+                </div>
+                <p class="text-slate-600">1,138 occurrences of <code class="text-xs bg-slate-100 px-1">style={{}}</code> across TSX files — 43% more than web-03 (797). Cannot be overridden by CSS, cannot be cached by React, creates maintenance burden. Many are Apollo CSS variable references that could be Tailwind classes.</p>
+              </div>
+              <div class="bg-white border border-orange-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">High</span>
+                  <span class="font-medium">Three competing styling systems</span>
+                </div>
+                <p class="text-slate-600">Tailwind utility classes, Apollo CSS variables (<code class="text-xs bg-slate-100 px-1">var(--apl-color-*)</code>), and inline styles all used in the same components. No clear convention for when to use which approach. Developers must guess which system to use.</p>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                  <span class="font-medium">Apollo CSS variables used in inline styles</span>
+                </div>
+                <p class="text-slate-600">Design tokens referenced via <code class="text-xs bg-slate-100 px-1">style={{ color: 'var(--apl-color-gray-smoke-50)' }}</code> instead of Tailwind utility classes. Defeats the purpose of having Tailwind configured with Apollo tokens.</p>
+              </div>
+            </div>
+          </details>
+          <details>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Healthy Patterns
+              <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs ml-auto">3</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Apollo design tokens in Tailwind</span>
+                <span class="text-slate-600"> — Custom Tailwind colors (green-pine-40/95, red-cherry-40, gray-smoke-*) mapped to Apollo CSS variables. Good integration of design system.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Thai font support</span>
+                <span class="text-slate-600"> — IBM Plex Sans Thai configured as primary font via Tailwind config. HTML lang="th" attribute set. Proper internationalization.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">PostCSS configured</span>
+                <span class="text-slate-600"> — Tailwind CSS + Autoprefixer via postcss.config.js. Standard modern CSS pipeline.</span>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- LAYER 10: TESTING -->
+      <section>
+        <h2 class="flex items-center gap-2 text-xl font-bold mb-4">
+          <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+          10. Testing
+          <span class="grade-f px-2 py-0.5 rounded text-xs font-bold ml-auto">F</span>
+        </h2>
+        <div class="text-xs font-mono text-slate-500 space-y-0.5 mb-3">
+          <div>tests/applications.spec.ts <span class="text-slate-400">(1 E2E test suite with API mocking)</span></div>
+          <div>tests/auth.ts <span class="text-slate-400">(Playwright auth fixture)</span></div>
+          <div>playwright.config.ts <span class="text-slate-400">(Chromium, configurable base URL)</span></div>
+          <div>No unit test files in src/</div>
+          <div>No unit test framework configured</div>
+        </div>
+        <div class="space-y-3">
+          <details open>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Anti-patterns
+              <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs ml-auto">3</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-red-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium">Critical</span>
+                  <span class="font-medium">Zero unit tests, zero integration tests</span>
+                </div>
+                <p class="text-slate-600">No <code class="text-xs bg-slate-100 px-1">.test.*</code> or <code class="text-xs bg-slate-100 px-1">.spec.*</code> files in <code class="text-xs bg-slate-100 px-1">src/</code>. No vitest, jest, or any unit testing framework configured. Any refactoring, bug fix, or new feature has no automated verification.</p>
+              </div>
+              <div class="bg-white border border-red-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium">Critical</span>
+                  <span class="font-medium">No unit test framework installed</span>
+                </div>
+                <p class="text-slate-600">No vitest, jest, or testing-library in <code class="text-xs bg-slate-100 px-1">package.json</code> dependencies. Starting from absolute zero. Only Playwright for E2E.</p>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg p-3 text-sm">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium">Medium</span>
+                  <span class="font-medium">Minimal E2E coverage</span>
+                </div>
+                <p class="text-slate-600">Only 1 Playwright test file (<code class="text-xs bg-slate-100 px-1">applications.spec.ts</code>) covering the applications page. 24 page/tab components untested. No regression safety net.</p>
+              </div>
+            </div>
+          </details>
+          <details>
+            <summary class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-4 py-3 text-sm font-medium hover:bg-slate-50">
+              <span class="chevron text-slate-400">&#9654;</span>
+              Healthy Patterns
+              <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs ml-auto">2</span>
+            </summary>
+            <div class="mt-2 space-y-2 pl-4">
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Playwright E2E foundation exists</span>
+                <span class="text-slate-600"> — Chromium-based E2E with auth fixture and API mocking. Configurable base URL for different environments. Test infrastructure in place.</span>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-3 text-sm">
+                <span class="text-emerald-700 font-medium">Testable architecture</span>
+                <span class="text-slate-600"> — 39 custom hooks with clear inputs/outputs are ideal candidates for unit testing. Clean separation of concerns makes testing straightforward once framework is added.</span>
+              </div>
+            </div>
+          </details>
+          <div class="bg-white border border-slate-200 rounded-lg p-4">
+            <p class="text-sm text-slate-600"><strong>Note:</strong> The codebase has strong type safety (16 <code class="text-xs bg-slate-100 px-1">any</code> across 28K lines), zero console.log in production code, clean code practices (2 eslint-disable). The team clearly values code quality — the testing gap is organizational. The 39 custom hooks with clear inputs/outputs and the existing Playwright setup are ideal starting points for building test coverage.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ANTI-PATTERN CATALOG -->
+      <section>
+        <h2 class="text-xl font-bold mb-4">Anti-Pattern Catalog</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+            <thead class="bg-slate-100">
+              <tr>
+                <th class="text-left px-4 py-2 font-semibold">Pattern</th>
+                <th class="text-center px-4 py-2 font-semibold">Severity</th>
+                <th class="text-right px-4 py-2 font-semibold">Occurrences</th>
+                <th class="text-left px-4 py-2 font-semibold">Key Files</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr class="bg-red-50">
+                <td class="px-4 py-2 font-medium">Docker runs dev server</td>
+                <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">Critical</span></td>
+                <td class="text-right px-4 py-2">1</td>
+                <td class="px-4 py-2 text-xs font-mono">Dockerfile</td>
+              </tr>
+              <tr class="bg-red-50">
+                <td class="px-4 py-2 font-medium">Zero unit test coverage</td>
+                <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">Critical</span></td>
+                <td class="text-right px-4 py-2">&mdash;</td>
+                <td class="px-4 py-2 text-xs font-mono">src/ (entire directory)</td>
+              </tr>
+              <tr class="bg-red-50">
+                <td class="px-4 py-2 font-medium">28+ god components (&gt;300 lines)</td>
+                <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">Critical</span></td>
+                <td class="text-right px-4 py-2">28</td>
+                <td class="px-4 py-2 text-xs font-mono">AddAccessAssignmentModal, EmployeesPage, MappingTab, types.ts, DelegationFormModal, GroupTab, AssignAccessTab, OUMappingModal, AutoTab, +19 more</td>
+              </tr>
+              <tr class="bg-red-50">
+                <td class="px-4 py-2 font-medium">1,138 inline style objects</td>
+                <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">Critical</span></td>
+                <td class="text-right px-4 py-2">1,138</td>
+                <td class="px-4 py-2 text-xs font-mono">Across all .tsx files</td>
+              </tr>
+              <tr class="bg-red-50">
+                <td class="px-4 py-2 font-medium">Mock data in production imports</td>
+                <td class="text-center px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">Critical</span></td>
+                <td class="text-right px-4 py-2">1</td>
+                <td class="px-4 py-2 text-xs font-mono">App.tsx → data/mock.ts</td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 font-medium">Dev bypass auth in production code</td>
+                <td class="text-center px-4 py-2"><span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs">High</span></td>
+                <td class="text-right px-4 py-2">2</td>
+                <td class="px-4 py-2 text-xs font-mono">lib/api.ts (VITE_DEV_BYPASS), utils/pcToken.ts (unsigned JWT)</td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 font-medium">Dual API approach (REST + Apollo)</td>
+                <td class="text-center px-4 py-2"><span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs">High</span></td>
+                <td class="text-right px-4 py-2">2</td>
+                <td class="px-4 py-2 text-xs font-mono">lib/api.ts, apollo/client.ts</td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 font-medium">Manual form state (no library)</td>
+                <td class="text-center px-4 py-2"><span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs">High</span></td>
+                <td class="text-right px-4 py-2">28</td>
+                <td class="px-4 py-2 text-xs font-mono">All modals with forms</td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 font-medium">No TanStack Query (manual data fetching)</td>
+                <td class="text-center px-4 py-2"><span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs">High</span></td>
+                <td class="text-right px-4 py-2">39</td>
+                <td class="px-4 py-2 text-xs font-mono">hooks/use*.ts</td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 font-medium">CRUD hook duplication</td>
+                <td class="text-center px-4 py-2"><span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs">High</span></td>
+                <td class="text-right px-4 py-2">39</td>
+                <td class="px-4 py-2 text-xs font-mono">hooks/use*.ts</td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 font-medium">No error boundaries</td>
+                <td class="text-center px-4 py-2"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">Medium</span></td>
+                <td class="text-right px-4 py-2">&mdash;</td>
+                <td class="px-4 py-2 text-xs font-mono">App.tsx (routes)</td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 font-medium">No code splitting / lazy loading</td>
+                <td class="text-center px-4 py-2"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">Medium</span></td>
+                <td class="text-right px-4 py-2">&mdash;</td>
+                <td class="px-4 py-2 text-xs font-mono">App.tsx (all imports eager)</td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 font-medium">No form validation library</td>
+                <td class="text-center px-4 py-2"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">Medium</span></td>
+                <td class="text-right px-4 py-2">&mdash;</td>
+                <td class="px-4 py-2 text-xs font-mono">package.json</td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 font-medium">855-line monolithic types.ts</td>
+                <td class="text-center px-4 py-2"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">Medium</span></td>
+                <td class="text-right px-4 py-2">1</td>
+                <td class="px-4 py-2 text-xs font-mono">src/types.ts</td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 font-medium">No ESLint/Prettier</td>
+                <td class="text-center px-4 py-2"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">Medium</span></td>
+                <td class="text-right px-4 py-2">&mdash;</td>
+                <td class="px-4 py-2 text-xs font-mono">package.json</td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 font-medium">State-based sidebar navigation</td>
+                <td class="text-center px-4 py-2"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">Medium</span></td>
+                <td class="text-right px-4 py-2">1</td>
+                <td class="px-4 py-2 text-xs font-mono">App.tsx (AppShell)</td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 font-medium">eslint-disable comments</td>
+                <td class="text-center px-4 py-2"><span class="bg-slate-200 text-slate-500 px-2 py-0.5 rounded-full text-xs">Low</span></td>
+                <td class="text-right px-4 py-2">2</td>
+                <td class="px-4 py-2 text-xs font-mono">App.tsx, authProvider.tsx</td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 font-medium">console.log statements</td>
+                <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">Clean</span></td>
+                <td class="text-right px-4 py-2">0</td>
+                <td class="px-4 py-2 text-xs font-mono text-emerald-600">None found</td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 font-medium"><code class="text-xs bg-slate-100 px-1">any</code> type usage</td>
+                <td class="text-center px-4 py-2"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">Clean</span></td>
+                <td class="text-right px-4 py-2">16</td>
+                <td class="px-4 py-2 text-xs font-mono text-emerald-600">Minimal for 28K lines — strong type safety</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- PACKAGE RECOMMENDATIONS -->
+      <section>
+        <h2 class="text-xl font-bold mb-4">Package Recommendations</h2>
+        <div class="space-y-4">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+              <thead class="bg-slate-100">
+                <tr>
+                  <th class="text-left px-4 py-2 font-semibold">Area</th>
+                  <th class="text-left px-4 py-2 font-semibold">Current</th>
+                  <th class="text-left px-4 py-2 font-semibold">Recommended</th>
+                  <th class="text-center px-4 py-2 font-semibold">Confidence</th>
+                  <th class="text-left px-4 py-2 font-semibold">Why</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr>
+                  <td class="px-4 py-3 font-medium">Unit Testing</td>
+                  <td class="px-4 py-3 text-slate-500">None (Playwright E2E only)</td>
+                  <td class="px-4 py-3"><code class="text-xs bg-slate-100 px-1">vitest + @testing-library/react</code></td>
+                  <td class="text-center px-4 py-3"><span class="badge-strong text-xs px-2 py-0.5 rounded">Strong</span></td>
+                  <td class="px-4 py-3 text-slate-600">Vitest integrates natively with Vite. Start with 39 custom hooks (clear inputs/outputs) and shared components.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-medium">Server State</td>
+                  <td class="px-4 py-3 text-slate-500">useState/useEffect hooks</td>
+                  <td class="px-4 py-3"><code class="text-xs bg-slate-100 px-1">@tanstack/react-query</code></td>
+                  <td class="text-center px-4 py-3"><span class="badge-strong text-xs px-2 py-0.5 rounded">Strong</span></td>
+                  <td class="px-4 py-3 text-slate-600">Replace 39 manual data hooks with TanStack Query. Gets caching, background refetch, request deduplication, stale-while-revalidate for free. Eliminates ~60% of hook boilerplate.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-medium">Forms</td>
+                  <td class="px-4 py-3 text-slate-500">useState per field</td>
+                  <td class="px-4 py-3"><code class="text-xs bg-slate-100 px-1">react-hook-form + zod</code></td>
+                  <td class="text-center px-4 py-3"><span class="badge-strong text-xs px-2 py-0.5 rounded">Strong</span></td>
+                  <td class="px-4 py-3 text-slate-600">28 modals with forms, each with manual state + validation. RHF reduces form code by ~50%. Zod provides type-safe schemas.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-medium">Linting</td>
+                  <td class="px-4 py-3 text-slate-500">None</td>
+                  <td class="px-4 py-3"><code class="text-xs bg-slate-100 px-1">eslint + prettier</code></td>
+                  <td class="text-center px-4 py-3"><span class="badge-strong text-xs px-2 py-0.5 rounded">Strong</span></td>
+                  <td class="px-4 py-3 text-slate-600">Enforce consistent style, catch bugs early. 2 eslint-disable comments suggest rules would catch real issues.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-medium">Docker</td>
+                  <td class="px-4 py-3 text-slate-500">npm run dev</td>
+                  <td class="px-4 py-3"><code class="text-xs bg-slate-100 px-1">Multi-stage: build + nginx</code></td>
+                  <td class="text-center px-4 py-3"><span class="badge-strong text-xs px-2 py-0.5 rounded">Strong</span></td>
+                  <td class="px-4 py-3 text-slate-600">Replace dev server with production build served by nginx. Critical for production performance and stability.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-medium">Error Boundaries</td>
+                  <td class="px-4 py-3 text-slate-500">None</td>
+                  <td class="px-4 py-3"><code class="text-xs bg-slate-100 px-1">react-error-boundary</code></td>
+                  <td class="text-center px-4 py-3"><span class="badge-worth text-xs px-2 py-0.5 rounded">Worth Exploring</span></td>
+                  <td class="px-4 py-3 text-slate-600">Wrap route-level components. Prevents full-page crash from runtime errors. Lightweight, well-maintained.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-medium">API Consolidation</td>
+                  <td class="px-4 py-3 text-slate-500">Dual (fetch + Apollo)</td>
+                  <td class="px-4 py-3"><code class="text-xs bg-slate-100 px-1">Single client (keep lib/api.ts)</code></td>
+                  <td class="text-center px-4 py-3"><span class="badge-worth text-xs px-2 py-0.5 rounded">Worth Exploring</span></td>
+                  <td class="px-4 py-3 text-slate-600">Apollo Client with RestLink adds complexity. <code class="text-xs bg-slate-100 px-1">lib/api.ts</code> is clean and sufficient. Remove Apollo if not using GraphQL.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-medium">Mock Data</td>
+                  <td class="px-4 py-3 text-slate-500">Direct import from mock.ts</td>
+                  <td class="px-4 py-3"><code class="text-xs bg-slate-100 px-1">msw (Mock Service Worker)</code></td>
+                  <td class="text-center px-4 py-3"><span class="badge-worth text-xs px-2 py-0.5 rounded">Worth Exploring</span></td>
+                  <td class="px-4 py-3 text-slate-600">Replace production mock imports with MSW for development and testing. No risk of mock data in production.</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3 font-medium">Env Validation</td>
+                  <td class="px-4 py-3 text-slate-500">Direct access</td>
+                  <td class="px-4 py-3"><code class="text-xs bg-slate-100 px-1">zod (shared with forms)</code></td>
+                  <td class="text-center px-4 py-3"><span class="badge-spec text-xs px-2 py-0.5 rounded">Speculative</span></td>
+                  <td class="px-4 py-3 text-slate-600">Validate <code class="text-xs bg-slate-100 px-1">import.meta.env</code> at startup. Prevents silent failures from missing env vars. Reuses zod from form validation.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- PRIORITIZED ACTION ITEMS -->
+      <section>
+        <h2 class="text-xl font-bold mb-4">Prioritized Action Items</h2>
+        <div class="space-y-3">
+          <!-- High Impact, Low Effort -->
+          <div>
+            <h3 class="text-sm font-bold text-emerald-700 uppercase tracking-wider mb-2">High Impact &middot; Low Effort (Do First)</h3>
+            <div class="space-y-2">
+              <div class="bg-white border border-emerald-200 rounded-lg p-4 flex items-start gap-3 text-sm">
+                <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-bold shrink-0">1</span>
+                <div>
+                  <div class="font-medium">Fix Dockerfile to multi-stage production build</div>
+                  <div class="text-slate-500 text-xs mt-1">Replace <code class="bg-slate-100 px-1">npm run dev</code> with <code class="bg-slate-100 px-1">npm run build</code> + nginx-alpine. ~2 hours. Critical production issue.</div>
+                </div>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-4 flex items-start gap-3 text-sm">
+                <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-bold shrink-0">2</span>
+                <div>
+                  <div class="font-medium">Remove mock data from production imports</div>
+                  <div class="text-slate-500 text-xs mt-1">Remove <code class="bg-slate-100 px-1">ROLES, PERMISSIONS, AUTO_MAPPINGS</code> imports from App.tsx or gate behind <code class="bg-slate-100 px-1">import.meta.env.DEV</code>. Replace sidebar counts with real API data. ~1-2 hours.</div>
+                </div>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-4 flex items-start gap-3 text-sm">
+                <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-bold shrink-0">3</span>
+                <div>
+                  <div class="font-medium">Add vitest + unit tests for custom hooks</div>
+                  <div class="text-slate-500 text-xs mt-1">39 hooks with clear inputs/outputs. Start with useApplications, useRoles, usePermissions. ~2-3 days for initial coverage.</div>
+                </div>
+              </div>
+              <div class="bg-white border border-emerald-200 rounded-lg p-4 flex items-start gap-3 text-sm">
+                <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-bold shrink-0">4</span>
+                <div>
+                  <div class="font-medium">Add eslint + prettier</div>
+                  <div class="text-slate-500 text-xs mt-1">Standard React + TypeScript config. ~2 hours setup, immediate code quality improvement.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- High Impact, Medium Effort -->
+          <div>
+            <h3 class="text-sm font-bold text-amber-600 uppercase tracking-wider mb-2">High Impact &middot; Medium Effort</h3>
+            <div class="space-y-2">
+              <div class="bg-white border border-amber-200 rounded-lg p-4 flex items-start gap-3 text-sm">
+                <span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs font-bold shrink-0">5</span>
+                <div>
+                  <div class="font-medium">Add @tanstack/react-query for server state</div>
+                  <div class="text-slate-500 text-xs mt-1">Replace 39 manual useState/useEffect data hooks with TanStack Query. Gets caching, deduplication, background refetch. Can be done incrementally. ~3-5 days for all hooks.</div>
+                </div>
+              </div>
+              <div class="bg-white border border-amber-200 rounded-lg p-4 flex items-start gap-3 text-sm">
+                <span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs font-bold shrink-0">6</span>
+                <div>
+                  <div class="font-medium">Extract AddAccessAssignmentModal sub-components</div>
+                  <div class="text-slate-500 text-xs mt-1">Split 1,406-line file into UserSearchSection, RoleAssignmentSection, DateSection, ADValidationSummary. ~3-4 days.</div>
+                </div>
+              </div>
+              <div class="bg-white border border-amber-200 rounded-lg p-4 flex items-start gap-3 text-sm">
+                <span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs font-bold shrink-0">7</span>
+                <div>
+                  <div class="font-medium">Add react-hook-form + zod</div>
+                  <div class="text-slate-500 text-xs mt-1">Replace manual useState form state in 28 modals. Start with largest modals (AddAccessAssignmentModal 1,406 lines, DelegationFormModal 828 lines). ~5 days for all modals.</div>
+                </div>
+              </div>
+              <div class="bg-white border border-amber-200 rounded-lg p-4 flex items-start gap-3 text-sm">
+                <span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs font-bold shrink-0">8</span>
+                <div>
+                  <div class="font-medium">Add error boundaries at route level</div>
+                  <div class="text-slate-500 text-xs mt-1">Wrap each route in react-error-boundary. Prevents full-page crash from runtime errors. ~1 day.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Medium Impact, Medium Effort -->
+          <div>
+            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Medium Impact &middot; Medium Effort</h3>
+            <div class="space-y-2">
+              <div class="bg-white border border-slate-200 rounded-lg p-4 flex items-start gap-3 text-sm">
+                <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs font-bold shrink-0">9</span>
+                <div>
+                  <div class="font-medium">Convert sidebar navigation to URL-based routing</div>
+                  <div class="text-slate-500 text-xs mt-1">Replace useState section/subItem/openApp with URL params. Enable deep linking, browser back/forward. ~2-3 days.</div>
+                </div>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg p-4 flex items-start gap-3 text-sm">
+                <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs font-bold shrink-0">10</span>
+                <div>
+                  <div class="font-medium">Convert inline styles to Tailwind classes</div>
+                  <div class="text-slate-500 text-xs mt-1">1,138 inline style objects to convert. File-by-file incremental approach. ~10-15 days total. Start with largest files (AddAccessAssignmentModal, EmployeesPage, MappingTab).</div>
+                </div>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg p-4 flex items-start gap-3 text-sm">
+                <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs font-bold shrink-0">11</span>
+                <div>
+                  <div class="font-medium">Split types.ts into per-feature modules</div>
+                  <div class="text-slate-500 text-xs mt-1">855-line monolithic types.ts → types/rbac.ts, types/abac.ts, types/employee.ts, types/delegation.ts. ~1 day, mechanical refactor.</div>
+                </div>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg p-4 flex items-start gap-3 text-sm">
+                <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs font-bold shrink-0">12</span>
+                <div>
+                  <div class="font-medium">Remove Apollo Client if not using GraphQL</div>
+                  <div class="text-slate-500 text-xs mt-1">Dual HTTP client adds complexity. If not using GraphQL features, consolidate on lib/api.ts fetch wrapper. ~1 day.</div>
+                </div>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg p-4 flex items-start gap-3 text-sm">
+                <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs font-bold shrink-0">13</span>
+                <div>
+                  <div class="font-medium">Add React.lazy code splitting</div>
+                  <div class="text-slate-500 text-xs mt-1">Lazy-load page and tab components. Reduces initial bundle. ~1 day.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RECOMMENDED ORDER -->
+      <section class="deep rounded-xl text-white p-6 space-y-4">
+        <h2 class="text-xl font-bold text-emerald-400">Recommended Implementation Order</h2>
+        <div class="space-y-4 text-sm text-slate-300">
+          <div>
+            <h3 class="text-white font-semibold mb-1">Phase 1: Quick Wins (Week 1)</h3>
+            <ol class="list-decimal list-inside space-y-1 text-slate-400">
+              <li><span class="text-emerald-300">Fix Dockerfile</span> to multi-stage production build (~2 hours)</li>
+              <li><span class="text-emerald-300">Remove mock data</span> from production imports (~1-2 hours)</li>
+              <li><span class="text-emerald-300">Add vitest</span> + initial hook tests (~2-3 days)</li>
+              <li><span class="text-emerald-300">Add eslint + prettier</span> (~2 hours)</li>
+            </ol>
+          </div>
+          <div>
+            <h3 class="text-white font-semibold mb-1">Phase 2: Infrastructure (Weeks 2-4)</h3>
+            <ol class="list-decimal list-inside space-y-1 text-slate-400" start="5">
+              <li><span class="text-emerald-300">Add @tanstack/react-query</span> — replace manual data hooks incrementally (~3-5 days)</li>
+              <li><span class="text-emerald-300">Extract AddAccessAssignmentModal</span> sub-components (~3-4 days)</li>
+              <li><span class="text-emerald-300">Add error boundaries</span> at route level (~1 day)</li>
+              <li><span class="text-emerald-300">Add react-hook-form + zod</span> — start with largest modals (~5 days initial)</li>
+            </ol>
+          </div>
+          <div>
+            <h3 class="text-white font-semibold mb-1">Phase 3: Code Reduction (Weeks 5-8)</h3>
+            <ol class="list-decimal list-inside space-y-1 text-slate-400" start="9">
+              <li><span class="text-emerald-300">Convert sidebar navigation</span> to URL-based routing (~2-3 days)</li>
+              <li><span class="text-emerald-300">Convert inline styles</span> to Tailwind — start with largest files (~10 days incremental)</li>
+              <li><span class="text-emerald-300">Split types.ts</span> into per-feature modules (~1 day)</li>
+              <li><span class="text-emerald-300">Remove Apollo Client</span> if not using GraphQL (~1 day)</li>
+              <li><span class="text-emerald-300">Add React.lazy</span> code splitting (~1 day)</li>
+            </ol>
+          </div>
+          <div>
+            <h3 class="text-white font-semibold mb-1">Phase 4: Polish (Ongoing)</h3>
+            <ol class="list-decimal list-inside space-y-1 text-slate-400" start="14">
+              <li><span class="text-emerald-300">Expand test coverage</span> — modals, pages, shared components</li>
+              <li><span class="text-emerald-300">Continue inline style conversion</span> — file by file</li>
+              <li><span class="text-emerald-300">Add MSW</span> for development and testing</li>
+              <li><span class="text-emerald-300">Refactor remaining god pages</span> — EmployeesPage, DelegationsPage, remaining tabs</li>
+            </ol>
+          </div>
+          <div class="pt-3 border-t border-slate-700">
+            <p class="text-slate-400"><strong class="text-slate-300">Estimated total effort:</strong> ~8-10 weeks for a mid-level developer working alongside feature work. Phase 1 is highest ROI — fixes critical production issues (Docker, mock data) and establishes testing foundation. The codebase has strong TypeScript and good auth patterns; the debt is concentrated in Docker config, data fetching patterns, component size, and styling consistency.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- LAYER VIOLATION MAP -->
+      <section>
+        <h2 class="text-xl font-bold mb-4">Layer Violation Map</h2>
+        <div class="bg-white border border-slate-200 rounded-lg p-4">
+          <div class="mermaid">
+            graph TD
+              subgraph Presentation
+                P1[AddAccessAssignmentModal.tsx]
+                P2[EmployeesPage.tsx]
+                P3[MappingTab.tsx]
+                P4[AppShell - state nav]
+              end
+              subgraph Application
+                A1[39 Custom Hooks]
+                A2[authStore.ts]
+                A3[authProvider.tsx]
+              end
+              subgraph Domain
+                D1[types.ts - 855 lines]
+                D2[data/mock.ts]
+              end
+              subgraph Infrastructure
+                I1[lib/api.ts]
+                I2[apollo/client.ts]
+                I3[Dockerfile - dev server]
+              end
+
+              P1 -->|"❌ 1,406 lines god modal"| P1
+              P2 -->|"❌ 978 lines god page"| P2
+              P3 -->|"❌ 939 lines + 50+ inline styles"| P3
+              P4 -->|"❌ imports mock data"| D2
+              I3 -->|"❌ runs npm run dev in prod"| I3
+              A1 -->|"❌ manual useState/useEffect"| A1
+
+              linkStyle 0 stroke:#dc2626,stroke-width:2px
+              linkStyle 1 stroke:#dc2626,stroke-width:2px
+              linkStyle 2 stroke:#dc2626,stroke-width:2px
+              linkStyle 3 stroke:#dc2626,stroke-width:2px
+              linkStyle 4 stroke:#dc2626,stroke-width:2px
+              linkStyle 5 stroke:#dc2626,stroke-width:2px
+          </div>
+        </div>
+      </section>
+
+      <!-- METRIC VIOLATIONS -->
+      <section>
+        <h2 class="text-xl font-bold mb-4">Metric Violations Summary</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs border border-slate-200 rounded-lg">
+            <thead class="bg-slate-50">
+              <tr>
+                <th class="text-left px-3 py-1.5 font-semibold">File</th>
+                <th class="text-right px-3 py-1.5 font-semibold">Metric</th>
+                <th class="text-right px-3 py-1.5 font-semibold">Actual</th>
+                <th class="text-right px-3 py-1.5 font-semibold">Threshold</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr><td class="px-3 py-1.5 font-mono">modals/AddAccessAssignmentModal.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">1,406</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">pages/EmployeesPage.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">978</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">pages/tabs/MappingTab.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">939</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">types.ts</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">855</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">modals/DelegationFormModal.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">828</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">pages/tabs/GroupTab.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">757</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">pages/tabs/AssignAccessTab.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">746</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">modals/OUMappingModal.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">687</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">pages/tabs/AutoTab.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">680</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">pages/MapRolePermissionPage.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">635</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">modals/AutoMappingEditorModal.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">620</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">pages/tabs/DelegationTab.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">612</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">pages/DelegationsPage.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">592</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">pages/ManagePermissionPage.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">586</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">pages/PCUsersPage.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">560</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">pages/tabs/PermissionsTab.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">559</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">pages/tabs/AttributeTab.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">507</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">pages/AuditLogsPage.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">475</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">components/MultiSearchableSelect.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">448</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">modals/PermissionFormModal.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">437</td><td class="text-right px-3 py-1.5">300</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">hooks/authProvider.tsx</td><td class="text-right px-3 py-1.5">Lines</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">221</td><td class="text-right px-3 py-1.5">200</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">src/ (all .tsx files)</td><td class="text-right px-3 py-1.5">Inline styles</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">1,138</td><td class="text-right px-3 py-1.5">0</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">Dockerfile</td><td class="text-right px-3 py-1.5">Build stages</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">1</td><td class="text-right px-3 py-1.5">&ge;2</td></tr>
+              <tr><td class="px-3 py-1.5 font-mono">src/ (unit test files)</td><td class="text-right px-3 py-1.5">Unit tests</td><td class="text-right px-3 py-1.5 text-red-600 font-medium">0</td><td class="text-right px-3 py-1.5">&gt;50</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="text-center text-xs text-slate-400 pt-8 border-t border-slate-200">
+        <p>Generated 2026-05-29 &middot; Code Audit Report &middot; permission-center-web02</p>
+      </footer>
+
+    </main>
+  </body>
+</html>
