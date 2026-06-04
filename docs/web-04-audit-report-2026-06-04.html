@@ -1,0 +1,1227 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Frontend Audit Report — permission-center-web04</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+    </script>
+    <style>
+      .seam { stroke-dasharray: 4 4; }
+      .leak { stroke: #dc2626; }
+      .deep { background: linear-gradient(135deg, #0f172a, #1e293b); }
+      .badge-strong { background: #059669; color: white; }
+      .badge-worth { background: #d97706; color: white; }
+      .badge-spec { background: #64748b; color: white; }
+      .layer-config { border-left-color: #6366f1; }
+      .layer-types { border-left-color: #0ea5e9; }
+      .layer-api { border-left-color: #8b5cf6; }
+      .layer-hooks { border-left-color: #f59e0b; }
+      .layer-components { border-left-color: #10b981; }
+      .layer-modals { border-left-color: #ec4899; }
+      .layer-pages { border-left-color: #6366f1; }
+      .layer-state { border-left-color: #ef4444; }
+      .layer-styling { border-left-color: #f97316; }
+      .layer-testing { border-left-color: #dc2626; }
+      .diagram-box { min-height: 320px; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- HEADER -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <header class="space-y-2">
+        <p class="text-xs text-slate-400 uppercase tracking-widest">Frontend Code Audit Report</p>
+        <h1 class="text-3xl font-bold">permission-center-web04</h1>
+        <p class="text-slate-500 text-sm">Permission Center — RBAC &amp; ABAC access management UI &bull; Audited 2026-06-04</p>
+      </header>
+
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- 1. EXECUTIVE SUMMARY -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <section class="space-y-6">
+        <h2 class="text-xl font-bold">1. Executive Summary</h2>
+
+        <!-- Overall Grade -->
+        <div class="flex items-center gap-4">
+          <div class="text-5xl font-bold text-amber-600 bg-amber-50 rounded-lg px-6 py-3">C</div>
+          <div>
+            <div class="font-semibold text-slate-800">Overall Grade</div>
+            <div class="text-sm text-slate-500">Adequate — Functional but significant technical debt. Multiple anti-patterns present. Needs refactoring.</div>
+          </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-5 gap-3">
+          <div class="bg-white rounded-lg border p-3 text-center">
+            <div class="text-2xl font-bold text-slate-800">112</div>
+            <div class="text-xs text-slate-500">Source Files</div>
+          </div>
+          <div class="bg-white rounded-lg border p-3 text-center">
+            <div class="text-2xl font-bold text-slate-800">24,372</div>
+            <div class="text-xs text-slate-500">Lines of Code</div>
+          </div>
+          <div class="bg-white rounded-lg border p-3 text-center">
+            <div class="text-2xl font-bold text-slate-800">36 / 29</div>
+            <div class="text-xs text-slate-500">Hooks / Components</div>
+          </div>
+          <div class="bg-white rounded-lg border p-3 text-center">
+            <div class="text-2xl font-bold text-red-600">0%</div>
+            <div class="text-xs text-slate-500">Unit Test Coverage</div>
+          </div>
+          <div class="bg-white rounded-lg border p-3 text-center">
+            <div class="text-2xl font-bold text-red-600">1,081</div>
+            <div class="text-xs text-slate-500">Inline Styles</div>
+          </div>
+        </div>
+
+        <!-- Stack Info -->
+        <div class="grid grid-cols-4 gap-3 text-xs">
+          <div class="bg-white rounded-lg border p-2">
+            <div class="font-semibold text-slate-700">Framework</div>
+            <div class="text-slate-500">React 18.3 + TypeScript 5.7</div>
+          </div>
+          <div class="bg-white rounded-lg border p-2">
+            <div class="font-semibold text-slate-700">State Management</div>
+            <div class="text-slate-500">useState only (no library)</div>
+          </div>
+          <div class="bg-white rounded-lg border p-2">
+            <div class="font-semibold text-slate-700">Routing</div>
+            <div class="text-slate-500">State-based (no router)</div>
+          </div>
+          <div class="bg-white rounded-lg border p-2">
+            <div class="font-semibold text-slate-700">UI Library</div>
+            <div class="text-slate-500">Apollo UI + Tailwind CSS 3.4</div>
+          </div>
+        </div>
+
+        <!-- Stack Tags -->
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="bg-slate-100 rounded px-2 py-1">React 18.3</span>
+          <span class="bg-slate-100 rounded px-2 py-1">TypeScript 5.7</span>
+          <span class="bg-slate-100 rounded px-2 py-1">Vite 8.0</span>
+          <span class="bg-slate-100 rounded px-2 py-1">Tailwind CSS 3.4</span>
+          <span class="bg-slate-100 rounded px-2 py-1">Apollo UI 1.4</span>
+          <span class="bg-slate-100 rounded px-2 py-1">Azure MSAL</span>
+          <span class="bg-slate-100 rounded px-2 py-1">TanStack Virtual</span>
+          <span class="bg-slate-100 rounded px-2 py-1">Playwright (E2E)</span>
+        </div>
+
+        <!-- Top 3 Critical Findings -->
+        <div class="space-y-2">
+          <h3 class="text-sm font-semibold text-red-700 uppercase tracking-wider">Top 3 Critical Findings</h3>
+          <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm">
+            <div class="font-semibold text-red-800">1. Zero unit test coverage</div>
+            <div class="text-red-700">No unit tests exist anywhere in <code class="bg-red-100 px-1 rounded text-xs">src/</code>. Only 2 Playwright E2E spec files under <code class="bg-red-100 px-1 rounded text-xs">tests/e2e/</code>. Any refactoring risks silent regressions.</div>
+          </div>
+          <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm">
+            <div class="font-semibold text-red-800">2. 1,081 inline styles overwhelming maintainability</div>
+            <div class="text-red-700"><code class="bg-red-100 px-1 rounded text-xs">style={{}}</code> appears 1,081 times across the codebase. Inline styles bypass Tailwind, can't be overridden by design tokens, and make responsive adjustments extremely difficult.</div>
+          </div>
+          <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm">
+            <div class="font-semibold text-red-800">3. Docker runs dev server in production</div>
+            <div class="text-red-700"><code class="bg-red-100 px-1 rounded text-xs">CMD ["sh", "-c", "npm run dev -- --host 0.0.0.0 --port ${PORT}"]</code> — no production build step. Vite dev server is not optimized, not minified, and exposes source maps in production.</div>
+          </div>
+        </div>
+
+        <!-- Top 3 Quick Wins -->
+        <div class="space-y-2">
+          <h3 class="text-sm font-semibold text-emerald-700 uppercase tracking-wider">Top 3 Quick Wins</h3>
+          <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-sm">
+            <div class="font-semibold text-emerald-800">1. Fix Dockerfile to use production build</div>
+            <div class="text-emerald-700">Add <code class="bg-emerald-100 px-1 rounded text-xs">npm run build</code> step + serve with <code class="bg-emerald-100 px-1 rounded text-xs">serve</code> or nginx. ~30 min effort, immediate production perf improvement.</div>
+          </div>
+          <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-sm">
+            <div class="font-semibold text-emerald-800">2. Add React Router for navigation</div>
+            <div class="text-emerald-700">Replace state-based <code class="bg-emerald-100 px-1 rounded text-xs">section/subItem</code> navigation with React Router. Enables deep linking, browser back/forward, and URL sharing.</div>
+          </div>
+          <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-sm">
+            <div class="font-semibold text-emerald-800">3. Remove mock data from production imports</div>
+            <div class="text-emerald-700"><code class="bg-emerald-100 px-1 rounded text-xs">App.tsx:10</code> imports <code class="bg-emerald-100 px-1 rounded text-xs">ROLES, PERMISSIONS, AUTO_MAPPINGS</code> from mock.ts and uses them in sidebar counts. Switch to real API data.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- 2. LAYER GRADES OVERVIEW -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-bold">2. Layer Grades Overview</h2>
+        <div class="bg-white rounded-lg border overflow-hidden">
+          <table class="text-sm w-full">
+            <thead>
+              <tr class="bg-slate-50 text-xs text-slate-500">
+                <th class="text-left px-4 py-2">Layer</th>
+                <th class="text-center px-4 py-2">Grade</th>
+                <th class="text-center px-4 py-2">Files</th>
+                <th class="text-center px-4 py-2">Lines</th>
+                <th class="text-center px-4 py-2">Anti-patterns</th>
+                <th class="text-center px-4 py-2">Healthy</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-medium">Project Setup &amp; Config</td>
+                <td class="text-center"><span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-semibold">B</span></td>
+                <td class="text-center">8</td>
+                <td class="text-center">~200</td>
+                <td class="text-center text-orange-600 font-semibold">2</td>
+                <td class="text-center text-emerald-600">6</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-medium">Types &amp; Data Models</td>
+                <td class="text-center"><span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5 text-xs font-semibold">A</span></td>
+                <td class="text-center">1</td>
+                <td class="text-center">708</td>
+                <td class="text-center text-orange-600 font-semibold">0</td>
+                <td class="text-center text-emerald-600">4</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-medium">API Layer</td>
+                <td class="text-center"><span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-semibold">B</span></td>
+                <td class="text-center">3</td>
+                <td class="text-center">125</td>
+                <td class="text-center text-orange-600 font-semibold">1</td>
+                <td class="text-center text-emerald-600">3</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-medium">Hooks / Data Fetching</td>
+                <td class="text-center"><span class="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 text-xs font-semibold">C</span></td>
+                <td class="text-center">36</td>
+                <td class="text-center">3,932</td>
+                <td class="text-center text-orange-600 font-semibold">3</td>
+                <td class="text-center text-emerald-600">4</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-medium">Shared Components</td>
+                <td class="text-center"><span class="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 text-xs font-semibold">C</span></td>
+                <td class="text-center">9</td>
+                <td class="text-center">1,677</td>
+                <td class="text-center text-orange-600 font-semibold">2</td>
+                <td class="text-center text-emerald-600">3</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-medium">Modal / Form Components</td>
+                <td class="text-center"><span class="bg-orange-100 text-orange-700 rounded-full px-2 py-0.5 text-xs font-semibold">D</span></td>
+                <td class="text-center">24</td>
+                <td class="text-center">5,405</td>
+                <td class="text-center text-red-600 font-semibold">4</td>
+                <td class="text-center text-emerald-600">1</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-medium">Pages &amp; Views</td>
+                <td class="text-center"><span class="bg-orange-100 text-orange-700 rounded-full px-2 py-0.5 text-xs font-semibold">D</span></td>
+                <td class="text-center">24</td>
+                <td class="text-center">7,579</td>
+                <td class="text-center text-red-600 font-semibold">4</td>
+                <td class="text-center text-emerald-600">2</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-medium">State Management &amp; Routing</td>
+                <td class="text-center"><span class="bg-orange-100 text-orange-700 rounded-full px-2 py-0.5 text-xs font-semibold">D</span></td>
+                <td class="text-center">2</td>
+                <td class="text-center">257</td>
+                <td class="text-center text-red-600 font-semibold">3</td>
+                <td class="text-center text-emerald-600">1</td>
+              </tr>
+              <tr class="border-t bg-red-50">
+                <td class="px-4 py-2 font-medium">Styling</td>
+                <td class="text-center"><span class="bg-red-100 text-red-700 rounded-full px-2 py-0.5 text-xs font-semibold">F</span></td>
+                <td class="text-center">—</td>
+                <td class="text-center">—</td>
+                <td class="text-center text-red-600 font-semibold">3</td>
+                <td class="text-center text-emerald-600">0</td>
+              </tr>
+              <tr class="border-t bg-red-50">
+                <td class="px-4 py-2 font-medium">Testing</td>
+                <td class="text-center"><span class="bg-red-100 text-red-700 rounded-full px-2 py-0.5 text-xs font-semibold">F</span></td>
+                <td class="text-center">2</td>
+                <td class="text-center">—</td>
+                <td class="text-center text-red-600 font-semibold">2</td>
+                <td class="text-center text-emerald-600">0</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- 3. LAYER-BY-LAYER AUDIT -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-bold">3. Layer-by-Layer Audit</h2>
+
+        <!-- ── 3.1 Project Setup & Config ── -->
+        <details open class="bg-white rounded-lg border">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-semibold">B</span>
+            <span class="font-semibold">3.1 Project Setup &amp; Config</span>
+            <span class="text-xs text-slate-400">8 files — vite.config, tsconfig, tailwind, Dockerfile, CI/CD, package.json</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <!-- File listing -->
+            <div class="font-mono text-xs text-slate-600 space-y-0.5 bg-slate-50 rounded p-2">
+              <div>package.json <span class="text-slate-400">— deps + scripts</span></div>
+              <div>vite.config.ts <span class="text-slate-400">— 24 lines, React plugin, @ alias</span></div>
+              <div>tsconfig.json / tsconfig.app.json / tsconfig.node.json <span class="text-slate-400">— strict mode</span></div>
+              <div>tailwind.config.js <span class="text-slate-400">— Apollo tokens, IBM Plex Sans Thai</span></div>
+              <div>Dockerfile <span class="text-slate-400">— 13 lines, node:22-alpine</span></div>
+              <div>.gitlab-ci.yml <span class="text-slate-400">— 3 stages: verify → build → deploy</span></div>
+              <div>playwright.config.ts <span class="text-slate-400">— Chromium, 30s timeout</span></div>
+              <div>postcss.config.js <span class="text-slate-400">— Tailwind + autoprefixer</span></div>
+            </div>
+
+            <!-- Anti-patterns -->
+            <details open class="space-y-2">
+              <summary class="text-sm font-semibold text-red-700 cursor-pointer">Anti-patterns (2)</summary>
+              <div class="space-y-2 pl-2">
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">Dockerfile:13</div>
+                  <p class="text-slate-700">Docker runs <code class="bg-red-50 px-1 rounded text-xs">npm run dev</code> in production — no build step, no minification, no optimization. The Vite dev server is not meant for production traffic.</p>
+                  <pre class="bg-slate-50 rounded p-2 mt-1 text-xs overflow-x-auto"><code>CMD ["sh", "-c", "npm run dev -- --host 0.0.0.0 --port ${PORT}"]</code></pre>
+                </div>
+                <div class="border-l-2 border-orange-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">tsconfig.app.json</div>
+                  <p class="text-slate-700"><code class="bg-orange-50 px-1 rounded text-xs">noUnusedLocals</code> and <code class="bg-orange-50 px-1 rounded text-xs">noUnusedParameters</code> are disabled — dead code can accumulate without compiler warnings.</p>
+                </div>
+              </div>
+            </details>
+
+            <!-- Healthy patterns -->
+            <details class="space-y-2">
+              <summary class="text-sm font-semibold text-emerald-700 cursor-pointer">Healthy Patterns (6)</summary>
+              <div class="space-y-1 pl-2 text-sm text-slate-700">
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Strict TypeScript mode enabled</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Path alias <code class="bg-slate-100 px-1 rounded text-xs">@/*</code> configured in both Vite and TS</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Cloud Run CI/CD with Kaniko build and manual deploy gate</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Playwright E2E configured with proper retry/retimeout</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Custom Apollo design tokens mapped in Tailwind config</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Node 22 target with ES2020 output</div></div>
+              </div>
+            </details>
+          </div>
+        </details>
+
+        <!-- ── 3.2 Types & Data Models ── -->
+        <details open class="bg-white rounded-lg border">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5 text-xs font-semibold">A</span>
+            <span class="font-semibold">3.2 Types &amp; Data Models</span>
+            <span class="text-xs text-slate-400">1 file, 708 lines</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <div class="font-mono text-xs text-slate-600 space-y-0.5 bg-slate-50 rounded p-2">
+              <div>types.ts <span class="text-slate-400">— 708 lines, comprehensive domain + API types</span></div>
+            </div>
+
+            <details class="space-y-2">
+              <summary class="text-sm font-semibold text-emerald-700 cursor-pointer">Healthy Patterns (4)</summary>
+              <div class="space-y-1 pl-2 text-sm text-slate-700">
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Clear separation between API types (snake_case) and domain types (camelCase) with conversion functions</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Both RBAC and ABAC domain models covered comprehensively</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Status enums use string literals (<code class="bg-slate-100 px-1 rounded text-xs">'active' | 'inactive' | 'pending'</code>)</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Well-organized with clear section comments separating each domain</div></div>
+              </div>
+            </details>
+          </div>
+        </details>
+
+        <!-- ── 3.3 API Layer ── -->
+        <details open class="bg-white rounded-lg border">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-semibold">B</span>
+            <span class="font-semibold">3.3 API Layer</span>
+            <span class="text-xs text-slate-400">3 files, 125 lines</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <div class="font-mono text-xs text-slate-600 space-y-0.5 bg-slate-50 rounded p-2">
+              <div>lib/api.ts <span class="text-slate-400">— 60 lines, generic fetch client</span></div>
+              <div>lib/auth.ts <span class="text-slate-400">— 50 lines, token management</span></div>
+              <div>configs/envConstants.ts <span class="text-slate-400">— 20 lines, env vars</span></div>
+            </div>
+
+            <details open class="space-y-2">
+              <summary class="text-sm font-semibold text-red-700 cursor-pointer">Anti-patterns (1)</summary>
+              <div class="space-y-2 pl-2">
+                <div class="border-l-2 border-orange-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">lib/api.ts:3</div>
+                  <p class="text-slate-700">Hardcoded fallback API URL in source. While env var is preferred, the fallback exposes internal infrastructure URL.</p>
+                  <pre class="bg-slate-50 rounded p-2 mt-1 text-xs overflow-x-auto"><code>const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://permission-center-api04-...run.app';</code></pre>
+                </div>
+              </div>
+            </details>
+
+            <details class="space-y-2">
+              <summary class="text-sm font-semibold text-emerald-700 cursor-pointer">Healthy Patterns (3)</summary>
+              <div class="space-y-1 pl-2 text-sm text-slate-700">
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Type-safe generic API client with proper error typing</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Automatic Bearer token injection from auth storage</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Thai localized error messages for network failures</div></div>
+              </div>
+            </details>
+          </div>
+        </details>
+
+        <!-- ── 3.4 Hooks / Data Fetching ── -->
+        <details open class="bg-white rounded-lg border">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 text-xs font-semibold">C</span>
+            <span class="font-semibold">3.4 Hooks / Data Fetching</span>
+            <span class="text-xs text-slate-400">36 files, 3,932 lines</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <div class="font-mono text-xs text-slate-600 bg-slate-50 rounded p-2 max-h-48 overflow-y-auto space-y-0.5">
+              <div>useOUMappings.ts — 288 lines</div>
+              <div>useEmployees.ts — 263 lines</div>
+              <div>usePermissions.ts — 262 lines</div>
+              <div>useActivity.ts — 229 lines</div>
+              <div>useOuFilters.ts — 227 lines</div>
+              <div>useManualAssignments.ts — 214 lines</div>
+              <div>useRoles.ts — 188 lines</div>
+              <div>useApplications.ts — 177 lines</div>
+              <div>useRolePermissions.ts — 160 lines</div>
+              <div>useRolePermissionPresets.ts — 111 lines</div>
+              <div>useRoleOptions.ts — 107 lines</div>
+              <div>useOverview.ts — 117 lines</div>
+              <div>useDelegations.ts — 97 lines</div>
+              <div>useAbacAssignments.ts — 137 lines</div>
+              <div>useAuth.ts — 130 lines</div>
+              <div>...and 21 more hooks (avg ~50 lines each)</div>
+            </div>
+
+            <details open class="space-y-2">
+              <summary class="text-sm font-semibold text-red-700 cursor-pointer">Anti-patterns (3)</summary>
+              <div class="space-y-2 pl-2">
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">All 36 hooks</div>
+                  <p class="text-slate-700">Manual fetch pattern (useState + useEffect) instead of TanStack Query. Every hook reimplements loading/error/caching/refetch logic. No cache sharing, no background refetch, no stale-while-revalidate.</p>
+                  <pre class="bg-slate-50 rounded p-2 mt-1 text-xs overflow-x-auto"><code>// Repeated in every hook:
+const [data, setData] = useState&lt;T[]&gt;([]);
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState&lt;string | null&gt;(null);
+const [tick, setTick] = useState(0);
+useEffect(() =&gt; { ... fetch ... }, [tick]);</code></pre>
+                </div>
+                <div class="border-l-2 border-orange-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <p class="text-slate-700">CRUD hook boilerplate duplication — many hooks follow identical patterns (list, create, update, delete) with only the API path differing. Could be a single generic <code class="bg-orange-50 px-1 rounded text-xs">useCrud&lt;T&gt;(basePath)</code> hook.</p>
+                </div>
+                <div class="border-l-2 border-amber-300 pl-3">
+                  <span class="bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <p class="text-slate-700">Tick-based refetch pattern (<code class="bg-amber-50 px-1 rounded text-xs">setTick(t =&gt; t + 1)</code>) is non-standard. Makes it harder to track why a refetch was triggered.</p>
+                </div>
+              </div>
+            </details>
+
+            <details class="space-y-2">
+              <summary class="text-sm font-semibold text-emerald-700 cursor-pointer">Healthy Patterns (4)</summary>
+              <div class="space-y-1 pl-2 text-sm text-slate-700">
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Proper cleanup with cancellation flags to prevent stale state updates</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Built-in 300ms debounce for search inputs</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>API-to-domain type conversion at hook boundary (snake_case → camelCase)</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>36 hooks with clear single-responsibility naming</div></div>
+              </div>
+            </details>
+          </div>
+        </details>
+
+        <!-- ── 3.5 Shared Components ── -->
+        <details open class="bg-white rounded-lg border">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 text-xs font-semibold">C</span>
+            <span class="font-semibold">3.5 Shared Components</span>
+            <span class="text-xs text-slate-400">9 files, 1,677 lines</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <div class="font-mono text-xs text-slate-600 space-y-0.5 bg-slate-50 rounded p-2">
+              <div>MultiSearchableSelect.tsx — 441 lines</div>
+              <div>SearchableSelect.tsx — 355 lines</div>
+              <div>Sidebar.tsx — 313 lines</div>
+              <div>ui.tsx — 148 lines</div>
+              <div>DataTable.tsx — 137 lines</div>
+              <div>ActionMenu.tsx — 110 lines</div>
+              <div>Pagination.tsx — 107 lines</div>
+              <div>PageHeader.tsx — 65 lines</div>
+              <div>SortableTh.tsx — 57 lines</div>
+            </div>
+
+            <details open class="space-y-2">
+              <summary class="text-sm font-semibold text-red-700 cursor-pointer">Anti-patterns (2)</summary>
+              <div class="space-y-2 pl-2">
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">MultiSearchableSelect.tsx (441 lines), SearchableSelect.tsx (355 lines)</div>
+                  <p class="text-slate-700">God components with heavy inline styles. MultiSearchableSelect at 441 lines is doing too much: rendering, filtering, keyboard navigation, and styling all in one file.</p>
+                </div>
+                <div class="border-l-2 border-orange-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">Sidebar.tsx:313</div>
+                  <p class="text-slate-700">Sidebar component at 313 lines handles both navigation logic and presentation. Could be split into PrimaryRail + SubSidebar + nav logic.</p>
+                </div>
+              </div>
+            </details>
+
+            <details class="space-y-2">
+              <summary class="text-sm font-semibold text-emerald-700 cursor-pointer">Healthy Patterns (3)</summary>
+              <div class="space-y-1 pl-2 text-sm text-slate-700">
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>DataTable provides generic reusable table with sorting, pagination, and empty states</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Custom ui.tsx wrappers around Apollo tokens for consistent theming</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Pagination component extracted as standalone reusable unit</div></div>
+              </div>
+            </details>
+          </div>
+        </details>
+
+        <!-- ── 3.6 Modal / Form Components ── -->
+        <details open class="bg-white rounded-lg border">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-orange-100 text-orange-700 rounded-full px-2 py-0.5 text-xs font-semibold">D</span>
+            <span class="font-semibold">3.6 Modal / Form Components</span>
+            <span class="text-xs text-slate-400">24 files, 5,405 lines</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <div class="font-mono text-xs text-slate-600 bg-slate-50 rounded p-2 max-h-48 overflow-y-auto space-y-0.5">
+              <div>DelegationFormModal.tsx — <span class="text-red-600 font-semibold">828 lines</span></div>
+              <div>OUMappingModal.tsx — <span class="text-red-600 font-semibold">687 lines</span></div>
+              <div>AutoMappingEditorModal.tsx — <span class="text-red-600 font-semibold">620 lines</span></div>
+              <div>AssignRoleModal.tsx — <span class="text-red-600 font-semibold">668 lines</span></div>
+              <div>ConfirmMappingSaveModal.tsx — 290 lines</div>
+              <div>PermissionFormModal.tsx — 331 lines</div>
+              <div>InviteUserModal.tsx — 320 lines</div>
+              <div>OUAppMappingEditorModal.tsx — 383 lines</div>
+              <div>PermissionEditorModal.tsx — 291 lines</div>
+              <div>DeletePermissionModal.tsx — 208 lines</div>
+              <div>DeleteRoleModal.tsx — 203 lines</div>
+              <div>RoleEditorModal.tsx — 190 lines</div>
+              <div>AppRoleFormModal.tsx — 188 lines</div>
+              <div>CreateAppModal.tsx — 175 lines</div>
+              <div>...and 10 more modals (avg ~120 lines each)</div>
+            </div>
+
+            <details open class="space-y-2">
+              <summary class="text-sm font-semibold text-red-700 cursor-pointer">Anti-patterns (4)</summary>
+              <div class="space-y-2 pl-2">
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">DelegationFormModal.tsx (828), OUMappingModal.tsx (687), AssignRoleModal.tsx (668)</div>
+                  <p class="text-slate-700">God modals — 3 modals exceed 600 lines. DelegationFormModal at 828 lines handles create/edit modes, custom multi-select, date validation, and complex form state all in one component.</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span>
+                  <p class="text-slate-700">Manual form state with <code class="bg-red-50 px-1 rounded text-xs">useState</code> per field — no form library. Every modal reimplements validation, error display, dirty checking, and submit handling from scratch.</p>
+                </div>
+                <div class="border-l-2 border-orange-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <p class="text-slate-700">Duplicated modal patterns — DeleteConfirmationModal pattern repeated 7+ times (AppRoleDelete, DeactivateApp, DeleteAssignment, DeleteAutoMapping, DeleteOUMapping, DeletePermission, DeleteRole).</p>
+                </div>
+                <div class="border-l-2 border-orange-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <p class="text-slate-700">V1/V2 versioned modals coexisting — <code class="bg-orange-50 px-1 rounded text-xs">DeletePermissionModal</code> and <code class="bg-orange-50 px-1 rounded text-xs">DeletePermissionModalV2</code> both exist. Should consolidate.</p>
+                </div>
+              </div>
+            </details>
+
+            <details class="space-y-2">
+              <summary class="text-sm font-semibold text-emerald-700 cursor-pointer">Healthy Patterns (1)</summary>
+              <div class="space-y-1 pl-2 text-sm text-slate-700">
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Controlled modal pattern with open/onOpenChange props from parent</div></div>
+              </div>
+            </details>
+          </div>
+        </details>
+
+        <!-- ── 3.7 Pages & Views ── -->
+        <details open class="bg-white rounded-lg border">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-orange-100 text-orange-700 rounded-full px-2 py-0.5 text-xs font-semibold">D</span>
+            <span class="font-semibold">3.7 Pages &amp; Views</span>
+            <span class="text-xs text-slate-400">24 files, 7,579 lines</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <div class="font-mono text-xs text-slate-600 bg-slate-50 rounded p-2 max-h-48 overflow-y-auto space-y-0.5">
+              <div>MappingTab.tsx — <span class="text-red-600 font-semibold">1,036 lines</span></div>
+              <div>EmployeesPage.tsx — <span class="text-red-600 font-semibold">978 lines</span></div>
+              <div>MapRolePermissionPage.tsx — <span class="text-red-600 font-semibold">617 lines</span></div>
+              <div>DelegationsPage.tsx — <span class="text-red-600 font-semibold">592 lines</span></div>
+              <div>AbacAssignmentsTab.tsx — 569 lines</div>
+              <div>PCUsersPage.tsx — 560 lines</div>
+              <div>ManagePermissionPage.tsx — 558 lines</div>
+              <div>AutoTab.tsx — 680 lines</div>
+              <div>PermissionsTab.tsx — 503 lines</div>
+              <div>AuditLogsPage.tsx — 475 lines</div>
+              <div>ManualTab.tsx — 441 lines</div>
+              <div>AutoAppMappingPage.tsx — 414 lines</div>
+              <div>ApplicationsPage.tsx — 384 lines</div>
+              <div>EndUsersPage.tsx — 346 lines</div>
+              <div>RolesTab.tsx — 347 lines</div>
+              <div>SettingsPage.tsx — 312 lines</div>
+              <div>SimulatorTab.tsx — 291 lines</div>
+              <div>...and 7 more tab/page files</div>
+            </div>
+
+            <details open class="space-y-2">
+              <summary class="text-sm font-semibold text-red-700 cursor-pointer">Anti-patterns (4)</summary>
+              <div class="space-y-2 pl-2">
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">MappingTab.tsx (1,036), EmployeesPage.tsx (978)</div>
+                  <p class="text-slate-700">God pages — MappingTab exceeds 1,000 lines handling role selection, permission grouping, preset management, diff visualization, and save confirmation all in one file.</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">EmployeesPage.tsx</div>
+                  <p class="text-slate-700">300+ inline styles in a single page file — WCAG contrast calculations, chip rendering, sticky columns, all using <code class="bg-red-50 px-1 rounded text-xs">style={{}}</code> instead of Tailwind classes.</p>
+                </div>
+                <div class="border-l-2 border-orange-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <p class="text-slate-700">10 files exceed 500 lines — pages should be thin orchestrators delegating to components and hooks, but here they contain substantial rendering logic.</p>
+                </div>
+                <div class="border-l-2 border-orange-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">App.tsx:10</div>
+                  <p class="text-slate-700">Mock data imported in production: <code class="bg-orange-50 px-1 rounded text-xs">import { ROLES, PERMISSIONS, AUTO_MAPPINGS } from '@/data/mock'</code> used for sidebar counts.</p>
+                </div>
+              </div>
+            </details>
+
+            <details class="space-y-2">
+              <summary class="text-sm font-semibold text-emerald-700 cursor-pointer">Healthy Patterns (2)</summary>
+              <div class="space-y-1 pl-2 text-sm text-slate-700">
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Tab-based feature organization with access model guards (RBAC vs ABAC)</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Excellent inline documentation in EmployeesPage.tsx with clear section comments</div></div>
+              </div>
+            </details>
+          </div>
+        </details>
+
+        <!-- ── 3.8 State Management & Routing ── -->
+        <details open class="bg-white rounded-lg border">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-orange-100 text-orange-700 rounded-full px-2 py-0.5 text-xs font-semibold">D</span>
+            <span class="font-semibold">3.8 State Management &amp; Routing</span>
+            <span class="text-xs text-slate-400">No dedicated files — embedded in App.tsx + toast.ts</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <details open class="space-y-2">
+              <summary class="text-sm font-semibold text-red-700 cursor-pointer">Anti-patterns (3)</summary>
+              <div class="space-y-2 pl-2">
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">App.tsx:26-27</div>
+                  <p class="text-slate-700">No router — navigation is entirely state-based with <code class="bg-red-50 px-1 rounded text-xs">section</code> and <code class="bg-red-50 px-1 rounded text-xs">subItem</code> useState. No deep linking, no browser back/forward, no URL persistence.</p>
+                  <pre class="bg-slate-50 rounded p-2 mt-1 text-xs overflow-x-auto"><code>const [section, setSection] = useState&lt;Section&gt;('apps');
+const [subItem, setSubItem] = useState&lt;string&gt;(DEFAULT_SUB.apps);</code></pre>
+                </div>
+                <div class="border-l-2 border-orange-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <p class="text-slate-700">No global state management — all state lives in component trees or custom hooks. Props drilling for cross-cutting concerns (selected app, navigation state).</p>
+                </div>
+                <div class="border-l-2 border-amber-300 pl-3">
+                  <span class="bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">lib/toast.ts</div>
+                  <p class="text-slate-700">Toast system uses listener Set pattern — functional but non-standard. React context or a notification library would be more maintainable.</p>
+                </div>
+              </div>
+            </details>
+
+            <details class="space-y-2">
+              <summary class="text-sm font-semibold text-emerald-700 cursor-pointer">Healthy Patterns (1)</summary>
+              <div class="space-y-1 pl-2 text-sm text-slate-700">
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div>Tab validity guard prevents rendering invalid tabs for RBAC vs ABAC apps</div></div>
+              </div>
+            </details>
+          </div>
+        </details>
+
+        <!-- ── 3.9 Styling ── -->
+        <details open class="bg-white rounded-lg border border-red-200">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-red-100 text-red-700 rounded-full px-2 py-0.5 text-xs font-semibold">F</span>
+            <span class="font-semibold">3.9 Styling</span>
+            <span class="text-xs text-slate-400">1,081 inline styles, Apollo CSS, Tailwind</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <details open class="space-y-2">
+              <summary class="text-sm font-semibold text-red-700 cursor-pointer">Anti-patterns (3)</summary>
+              <div class="space-y-2 pl-2">
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">1,081 occurrences across codebase</div>
+                  <p class="text-slate-700">Massive inline style usage — <code class="bg-red-50 px-1 rounded text-xs">style={{}}</code> appears 1,081 times. This is the single largest code quality issue. Inline styles can't be cached, can't be overridden by CSS, can't use media queries, and defeat the purpose of Tailwind CSS.</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span>
+                  <p class="text-slate-700">Inline styles mixed with Tailwind classes in the same component — no consistent approach. Some files use only Tailwind, others only inline styles, most mix both.</p>
+                </div>
+                <div class="border-l-2 border-orange-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <p class="text-slate-700">Apollo CSS variable references (<code class="bg-orange-50 px-1 rounded text-xs">var(--apl-color-...)</code>) used in inline styles rather than mapped through Tailwind config. Bypasses the design token system.</p>
+                </div>
+              </div>
+            </details>
+
+            <details class="space-y-2">
+              <summary class="text-sm font-semibold text-emerald-700 cursor-pointer">Healthy Patterns (0)</summary>
+              <div class="text-sm text-slate-400 pl-2">No healthy patterns identified in this layer.</div>
+            </details>
+          </div>
+        </details>
+
+        <!-- ── 3.10 Testing ── -->
+        <details open class="bg-white rounded-lg border border-red-200">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-red-100 text-red-700 rounded-full px-2 py-0.5 text-xs font-semibold">F</span>
+            <span class="font-semibold">3.10 Testing</span>
+            <span class="text-xs text-slate-400">0 unit tests, 2 E2E test files</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <div class="font-mono text-xs text-slate-600 space-y-0.5 bg-slate-50 rounded p-2">
+              <div>tests/e2e/applications.spec.ts <span class="text-slate-400">— E2E spec</span></div>
+              <div>tests/e2e/fixtures/auth.ts <span class="text-slate-400">— Auth fixture</span></div>
+            </div>
+
+            <details open class="space-y-2">
+              <summary class="text-sm font-semibold text-red-700 cursor-pointer">Anti-patterns (2)</summary>
+              <div class="space-y-2 pl-2">
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span>
+                  <p class="text-slate-700">Zero unit tests — no test files exist anywhere under <code class="bg-red-50 px-1 rounded text-xs">src/</code>. No test runner (Jest/Vitest) configured in package.json scripts. No test utilities.</p>
+                </div>
+                <div class="border-l-2 border-orange-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <p class="text-slate-700">Minimal E2E coverage — only 2 Playwright files with a single spec + auth fixture. No coverage for 112 source files, 24 modals, 36 hooks, or any CRUD flow.</p>
+                </div>
+              </div>
+            </details>
+          </div>
+        </details>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- 4. ANTI-PATTERN CATALOG -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-bold">4. Anti-Pattern Catalog</h2>
+        <div class="bg-white rounded-lg border overflow-hidden">
+          <table class="text-sm w-full">
+            <thead>
+              <tr class="bg-slate-50 text-xs text-slate-500">
+                <th class="text-left px-4 py-2">Pattern</th>
+                <th class="text-center px-4 py-2">Severity</th>
+                <th class="text-center px-4 py-2">Occurrences</th>
+                <th class="text-left px-4 py-2">Key Files</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-t bg-red-50">
+                <td class="px-4 py-2 font-medium">Inline styles</td>
+                <td class="text-center"><span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span></td>
+                <td class="text-center font-semibold">1,081</td>
+                <td class="font-mono text-xs text-slate-500">EmployeesPage.tsx, MappingTab.tsx, SearchableSelect.tsx</td>
+              </tr>
+              <tr class="border-t bg-red-50">
+                <td class="px-4 py-2 font-medium">No unit tests</td>
+                <td class="text-center"><span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span></td>
+                <td class="text-center font-semibold">0 files</td>
+                <td class="font-mono text-xs text-slate-500">src/ (entire)</td>
+              </tr>
+              <tr class="border-t bg-red-50">
+                <td class="px-4 py-2 font-medium">God components (>300 lines)</td>
+                <td class="text-center"><span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span></td>
+                <td class="text-center font-semibold">17 files</td>
+                <td class="font-mono text-xs text-slate-500">MappingTab.tsx (1,036), EmployeesPage.tsx (978), DelegationFormModal.tsx (828)</td>
+              </tr>
+              <tr class="border-t bg-red-50">
+                <td class="px-4 py-2 font-medium">Dev server in production Docker</td>
+                <td class="text-center"><span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span></td>
+                <td class="text-center font-semibold">1</td>
+                <td class="font-mono text-xs text-slate-500">Dockerfile:13</td>
+              </tr>
+              <tr class="border-t bg-red-50">
+                <td class="px-4 py-2 font-medium">No router</td>
+                <td class="text-center"><span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span></td>
+                <td class="text-center font-semibold">1</td>
+                <td class="font-mono text-xs text-slate-500">App.tsx</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-medium">Manual form state (no library)</td>
+                <td class="text-center"><span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span></td>
+                <td class="text-center font-semibold">24 modals</td>
+                <td class="font-mono text-xs text-slate-500">components/modals/*</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-medium">Mock data in production imports</td>
+                <td class="text-center"><span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span></td>
+                <td class="text-center font-semibold">1</td>
+                <td class="font-mono text-xs text-slate-500">App.tsx:10</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-medium">No global state management</td>
+                <td class="text-center"><span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span></td>
+                <td class="text-center font-semibold">1</td>
+                <td class="font-mono text-xs text-slate-500">App.tsx, pages/*</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-medium">CRUD hook boilerplate duplication</td>
+                <td class="text-center"><span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span></td>
+                <td class="text-center font-semibold">~15 hooks</td>
+                <td class="font-mono text-xs text-slate-500">hooks/useManualAssignments.ts, useAbacAssignments.ts, useDelegations.ts</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-medium">Delete modal pattern duplication</td>
+                <td class="text-center"><span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span></td>
+                <td class="text-center font-semibold">7+ files</td>
+                <td class="font-mono text-xs text-slate-500">components/modals/Delete*</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-medium">V1/V2 modal versioning</td>
+                <td class="text-center"><span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span></td>
+                <td class="text-center font-semibold">2 pairs</td>
+                <td class="font-mono text-xs text-slate-500">DeletePermissionModal.tsx/V2, InactivatePermissionModal.tsx/V2</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-medium">Manual fetch pattern (no React Query)</td>
+                <td class="text-center"><span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span></td>
+                <td class="text-center font-semibold">36 hooks</td>
+                <td class="font-mono text-xs text-slate-500">hooks/*</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-medium">Tick-based refetch</td>
+                <td class="text-center"><span class="bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span></td>
+                <td class="text-center font-semibold">~10 hooks</td>
+                <td class="font-mono text-xs text-slate-500">hooks/useRoles.ts, usePermissions.ts</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-medium"><code>any</code> type usage</td>
+                <td class="text-center"><span class="bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span></td>
+                <td class="text-center font-semibold">12</td>
+                <td class="font-mono text-xs text-slate-500">Various files</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-medium">Hardcoded API fallback URL</td>
+                <td class="text-center"><span class="bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span></td>
+                <td class="text-center font-semibold">1</td>
+                <td class="font-mono text-xs text-slate-500">lib/api.ts:3</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- 5. PACKAGE RECOMMENDATIONS -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-bold">5. Package Recommendations</h2>
+        <div class="bg-white rounded-lg border overflow-hidden">
+          <table class="text-sm w-full">
+            <thead>
+              <tr class="bg-slate-50 text-xs text-slate-500">
+                <th class="text-left px-4 py-2">Area</th>
+                <th class="text-left px-4 py-2">Current</th>
+                <th class="text-left px-4 py-2">Recommended</th>
+                <th class="text-center px-4 py-2">Confidence</th>
+                <th class="text-left px-4 py-2">Why</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-t">
+                <td class="px-4 py-2">Data Fetching</td>
+                <td class="px-4 py-2 font-mono text-xs">Manual useState+useEffect</td>
+                <td class="px-4 py-2 font-mono text-xs">@tanstack/react-query v5</td>
+                <td class="text-center"><span class="badge-strong rounded px-1.5 py-0.5 text-xs">Strong</span></td>
+                <td class="px-4 py-2">Eliminates 36 hooks of boilerplate. Adds caching, background refetch, stale-while-revalidate, and optimistic updates.</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">Routing</td>
+                <td class="px-4 py-2 font-mono text-xs">State-based (no router)</td>
+                <td class="px-4 py-2 font-mono text-xs">react-router v7</td>
+                <td class="text-center"><span class="badge-strong rounded px-1.5 py-0.5 text-xs">Strong</span></td>
+                <td class="px-4 py-2">Enables deep linking, browser history, URL params. Essential for any multi-page SPA.</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">Forms</td>
+                <td class="px-4 py-2 font-mono text-xs">Manual useState per field</td>
+                <td class="px-4 py-2 font-mono text-xs">react-hook-form + zod</td>
+                <td class="text-center"><span class="badge-strong rounded px-1.5 py-0.5 text-xs">Strong</span></td>
+                <td class="px-4 py-2">Replaces manual validation in 24 modals. Schema-based validation with TypeScript inference.</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">State Management</td>
+                <td class="px-4 py-2 font-mono text-xs">useState only</td>
+                <td class="px-4 py-2 font-mono text-xs">zustand v5</td>
+                <td class="text-center"><span class="badge-strong rounded px-1.5 py-0.5 text-xs">Strong</span></td>
+                <td class="px-4 py-2">Minimal API, no boilerplate. Perfect for selected app, navigation state, user preferences.</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">Unit Testing</td>
+                <td class="px-4 py-2 font-mono text-xs">None (Playwright E2E only)</td>
+                <td class="px-4 py-2 font-mono text-xs">vitest + @testing-library/react</td>
+                <td class="text-center"><span class="badge-strong rounded px-1.5 py-0.5 text-xs">Strong</span></td>
+                <td class="px-4 py-2">Vite-native test runner. Zero config. Add <code class="bg-slate-100 px-1 rounded text-xs">vitest</code> to vite.config.ts and start testing hooks/components.</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">Linting</td>
+                <td class="px-4 py-2 font-mono text-xs">None configured</td>
+                <td class="px-4 py-2 font-mono text-xs">eslint + prettier</td>
+                <td class="text-center"><span class="badge-worth rounded px-1.5 py-0.5 text-xs">Worth Exploring</span></td>
+                <td class="px-4 py-2">No linting or formatting found in package.json. Would catch inline style abuse and inconsistent patterns.</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">HTTP Client</td>
+                <td class="px-4 py-2 font-mono text-xs">Native fetch</td>
+                <td class="px-4 py-2 font-mono text-xs">ky or keep fetch</td>
+                <td class="text-center"><span class="badge-spec rounded px-1.5 py-0.5 text-xs">Speculative</span></td>
+                <td class="px-4 py-2">Current fetch wrapper is clean and minimal. Only consider if retries/interceptors needed.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- 6. PRIORITIZED ACTION ITEMS -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <section class="space-y-6">
+        <h2 class="text-xl font-bold">6. Prioritized Action Items</h2>
+
+        <!-- High Impact, Low Effort -->
+        <div class="space-y-3">
+          <h3 class="text-sm font-semibold text-emerald-700 uppercase tracking-wider">High Impact, Low Effort (Do First)</h3>
+          <ol class="space-y-2 text-sm list-decimal list-inside">
+            <li><strong>Fix Dockerfile production build</strong> — Add <code class="bg-emerald-100 px-1 rounded text-xs">npm run build</code> + nginx serve <code class="bg-emerald-100 px-1 rounded text-xs">~30 min</code></li>
+            <li><strong>Remove mock data from production imports</strong> — Replace with API calls in App.tsx sidebar counts <code class="bg-emerald-100 px-1 rounded text-xs">~1 hr</code></li>
+            <li><strong>Install Vitest</strong> — Add to vite.config, write first hook test as template <code class="bg-emerald-100 px-1 rounded text-xs">~2 hrs</code></li>
+            <li><strong>Consolidate delete modals</strong> — Create generic <code class="bg-emerald-100 px-1 rounded text-xs">ConfirmDeleteModal</code> component <code class="bg-emerald-100 px-1 rounded text-xs">~3 hrs</code></li>
+          </ol>
+        </div>
+
+        <!-- High Impact, Medium Effort -->
+        <div class="space-y-3">
+          <h3 class="text-sm font-semibold text-blue-700 uppercase tracking-wider">High Impact, Medium Effort</h3>
+          <ol class="space-y-2 text-sm list-decimal list-inside">
+            <li><strong>Add React Router</strong> — Replace state-based navigation, set up routes for all sections/tabs <code class="bg-blue-100 px-1 rounded text-xs">~1 day</code></li>
+            <li><strong>Install TanStack Query</strong> — Replace manual fetch hooks, start with 5 most-used hooks as template <code class="bg-blue-100 px-1 rounded text-xs">~2 days</code></li>
+            <li><strong>Convert inline styles to Tailwind</strong> — Start with top 5 largest files, batch conversion <code class="bg-blue-100 px-1 rounded text-xs">~3-5 days</code></li>
+            <li><strong>Add React Hook Form + Zod</strong> — Start with new modals, then migrate existing ones <code class="bg-blue-100 px-1 rounded text-xs">~3 days</code></li>
+          </ol>
+        </div>
+
+        <!-- Medium Impact, Medium Effort -->
+        <div class="space-y-3">
+          <h3 class="text-sm font-semibold text-amber-700 uppercase tracking-wider">Medium Impact, Medium Effort</h3>
+          <ol class="space-y-2 text-sm list-decimal list-inside">
+            <li><strong>Extract god components</strong> — Break MappingTab.tsx (1,036 lines) into 4-5 sub-components <code class="bg-amber-100 px-1 rounded text-xs">~2 days</code></li>
+            <li><strong>Add Zustand for global state</strong> — Selected app, navigation, user preferences <code class="bg-amber-100 px-1 rounded text-xs">~1 day</code></li>
+            <li><strong>Create generic CRUD hook</strong> — Reduce 15 near-identical hooks to one parameterized hook <code class="bg-amber-100 px-1 rounded text-xs">~1 day</code></li>
+            <li><strong>Add ESLint + Prettier</strong> — Configure with strict rules for inline styles and any types <code class="bg-amber-100 px-1 rounded text-xs">~4 hrs</code></li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- 7. RECOMMENDED IMPLEMENTATION ORDER -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <section class="deep rounded-xl p-8 text-white space-y-6">
+        <h2 class="text-xl font-bold">7. Recommended Implementation Order</h2>
+        <div class="space-y-4 text-sm">
+          <div>
+            <h3 class="font-semibold text-emerald-300">Phase 1: Quick Wins (Week 1)</h3>
+            <ul class="list-disc list-inside text-slate-300 mt-1 space-y-1">
+              <li>Fix Dockerfile to use production build</li>
+              <li>Remove mock data imports from App.tsx</li>
+              <li>Install Vitest + write 5 hook tests as template</li>
+              <li>Consolidate delete modal variants into generic component</li>
+            </ul>
+            <div class="text-xs text-slate-400 mt-1">Effort: ~1 day | Impact: Production safety + test foundation</div>
+          </div>
+          <div>
+            <h3 class="font-semibold text-blue-300">Phase 2: Infrastructure (Weeks 2-3)</h3>
+            <ul class="list-disc list-inside text-slate-300 mt-1 space-y-1">
+              <li>Add React Router — replace state-based navigation</li>
+              <li>Install TanStack Query — migrate top 10 hooks</li>
+              <li>Add React Hook Form + Zod — migrate 5 most complex modals</li>
+              <li>Add Zustand for global state (selected app, user prefs)</li>
+            </ul>
+            <div class="text-xs text-slate-400 mt-1">Effort: ~1.5 weeks | Impact: Modern architecture foundation</div>
+          </div>
+          <div>
+            <h3 class="font-semibold text-amber-300">Phase 3: Code Reduction (Weeks 4-6)</h3>
+            <ul class="list-disc list-inside text-slate-300 mt-1 space-y-1">
+              <li>Convert inline styles to Tailwind — start with 5 largest files</li>
+              <li>Break up god components (MappingTab, EmployeesPage, DelegationFormModal)</li>
+              <li>Create generic CRUD hook — consolidate 15 hooks</li>
+              <li>Remove V1/V2 modal duplicates</li>
+            </ul>
+            <div class="text-xs text-slate-400 mt-1">Effort: ~2-3 weeks | Impact: Significant code reduction + maintainability</div>
+          </div>
+          <div>
+            <h3 class="font-semibold text-violet-300">Phase 4: Polish (Ongoing)</h3>
+            <ul class="list-disc list-inside text-slate-300 mt-1 space-y-1">
+              <li>Continue inline style conversion across remaining files</li>
+              <li>Add unit tests for all hooks and components</li>
+              <li>Add E2E tests for critical CRUD flows</li>
+              <li>Configure ESLint strict rules + Prettier</li>
+            </ul>
+            <div class="text-xs text-slate-400 mt-1">Effort: Ongoing | Impact: Long-term code quality</div>
+          </div>
+        </div>
+        <div class="text-xs text-slate-400 border-t border-slate-600 pt-4">
+          Total estimated effort: ~5-7 weeks for full transformation | Priority: Phase 1-2 deliver 80% of value in 20% of time
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- 8. LAYER VIOLATION MAP -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-bold">8. Layer Violation Map</h2>
+        <div class="bg-white rounded-lg border p-4 diagram-box">
+          <pre class="mermaid">
+graph TD
+  subgraph Config["Config &amp; Setup"]
+    Vite["vite.config, tsconfig"]
+    Docker["Dockerfile"]
+    CI[".gitlab-ci.yml"]
+  end
+
+  subgraph Data["Data Layer"]
+    Types["types.ts"]
+    API["lib/api.ts, auth.ts"]
+    Hooks["36 Custom Hooks"]
+  end
+
+  subgraph UI["UI Layer"]
+    Shared["9 Shared Components"]
+    Modals["24 Modal Components"]
+    Pages["24 Page Components"]
+  end
+
+  subgraph Cross["Cross-Cutting"]
+    Mock["data/mock.ts"]
+    Toast["lib/toast.ts"]
+    Sidebar["Sidebar.tsx"]
+  end
+
+  Pages -->|"imports mock data"| Mock
+  Pages -->|"inline styles (1,081)"| UI
+  Modals -->|"duplicated delete pattern"| Modals
+  Sidebar -->|"navigation state"| Pages
+  Hooks -->|"manual fetch boilerplate"| API
+
+  classDef viol fill:#fee2e2,stroke:#dc2626,stroke-width:2px
+  classDef warn fill:#fff7ed,stroke:#f97316,stroke-width:2px
+  classDef good fill:#ecfdf5,stroke:#10b981,stroke-width:2px
+
+  class Mock,Toast viol
+  class Docker warn
+  class Types,API good
+          </pre>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- 9. METRIC VIOLATIONS SUMMARY -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-bold">9. Metric Violations Summary</h2>
+        <div class="bg-white rounded-lg border overflow-hidden">
+          <table class="text-sm w-full">
+            <thead>
+              <tr class="bg-slate-50 text-xs text-slate-500">
+                <th class="text-left px-4 py-2">File</th>
+                <th class="text-left px-4 py-2">Metric</th>
+                <th class="text-center px-4 py-2">Actual</th>
+                <th class="text-center px-4 py-2">Threshold</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">MappingTab.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">1,036</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">EmployeesPage.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">978</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">DelegationFormModal.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">828</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">OUMappingModal.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">687</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">AutoTab.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">680</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">AssignRoleModal.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">668</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">AutoMappingEditorModal.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">620</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">MapRolePermissionPage.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">617</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">DelegationsPage.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">592</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">AbacAssignmentsTab.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">569</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">PCUsersPage.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">560</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">ManagePermissionPage.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">558</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">PermissionsTab.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">503</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">AuditLogsPage.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">475</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">ManualTab.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">441</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">MultiSearchableSelect.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">441</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">AutoAppMappingPage.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">414</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">ApplicationsPage.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">384</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">OUAppMappingEditorModal.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">383</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">SearchableSelect.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">355</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">EndUsersPage.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">346</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">RolesTab.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">347</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">PermissionFormModal.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">331</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">InviteUserModal.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">320</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">Sidebar.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">313</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">SettingsPage.tsx</td>
+                <td class="px-4 py-2">Lines</td>
+                <td class="text-center font-semibold text-red-600">312</td>
+                <td class="text-center text-slate-400">300</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">src/ (entire codebase)</td>
+                <td class="px-4 py-2">Inline styles</td>
+                <td class="text-center font-semibold text-red-600">1,081</td>
+                <td class="text-center text-slate-400">0</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">src/ (entire codebase)</td>
+                <td class="px-4 py-2">Unit test files</td>
+                <td class="text-center font-semibold text-red-600">0</td>
+                <td class="text-center text-slate-400">&ge;1 per layer</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="text-center text-xs text-slate-400 pt-8 border-t">
+        Generated 2026-06-04 &bull; permission-center-web04 &bull; Frontend Code Audit Report
+      </footer>
+
+    </main>
+  </body>
+</html>

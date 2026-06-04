@@ -1,0 +1,1457 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Backend Audit Report — permission-center-api04</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+    </script>
+    <style>
+      .seam { stroke-dasharray: 4 4; }
+      .leak { stroke: #dc2626; }
+      .deep { background: linear-gradient(135deg, #0f172a, #1e293b); }
+      .badge-strong { background: #059669; color: white; }
+      .badge-worth { background: #d97706; color: white; }
+      .badge-spec { background: #64748b; color: white; }
+      .layer-presentation { border-left-color: #6366f1; }
+      .layer-application { border-left-color: #8b5cf6; }
+      .layer-domain { border-left-color: #0ea5e9; }
+      .layer-infrastructure { border-left-color: #f59e0b; }
+      .diagram-box { min-height: 320px; }
+      pre { margin: 0; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+      <!-- ============================================================ -->
+      <!-- 1. EXECUTIVE SUMMARY                                         -->
+      <!-- ============================================================ -->
+      <header class="space-y-6">
+        <div class="flex items-end justify-between">
+          <div>
+            <h1 class="text-3xl font-bold tracking-tight">permission-center-api04</h1>
+            <p class="text-slate-500 mt-1">Backend Audit Report</p>
+          </div>
+          <div class="text-right">
+            <div class="text-sm text-slate-500">2026-06-04</div>
+            <div class="text-sm text-slate-500">142 Go files · ~35K LOC</div>
+          </div>
+        </div>
+
+        <!-- Overall Grade -->
+        <div class="flex items-center gap-4">
+          <div class="text-5xl font-bold text-blue-600 bg-blue-50 rounded-lg px-6 py-3">B</div>
+          <div class="text-sm text-slate-600 max-w-lg">
+            Solid layered architecture with good test coverage (40 test files, ~17.7K test lines). Gaps in security (hardcoded credentials, panic on startup), missing dev tooling (no linter, no Makefile), and no observability stack. Multiple anti-patterns in handlers and repositories need attention.
+          </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-5 gap-3">
+          <div class="bg-white rounded-lg border p-3 text-center">
+            <div class="text-2xl font-bold text-slate-800">142</div>
+            <div class="text-xs text-slate-500">Go Files</div>
+          </div>
+          <div class="bg-white rounded-lg border p-3 text-center">
+            <div class="text-2xl font-bold text-slate-800">~35K</div>
+            <div class="text-xs text-slate-500">Lines of Code</div>
+          </div>
+          <div class="bg-white rounded-lg border p-3 text-center">
+            <div class="text-2xl font-bold text-slate-800">16 / 17 / 19</div>
+            <div class="text-xs text-slate-500">Handler / Service / Repo</div>
+          </div>
+          <div class="bg-white rounded-lg border p-3 text-center">
+            <div class="text-2xl font-bold text-slate-800">40</div>
+            <div class="text-xs text-slate-500">Test Files</div>
+          </div>
+          <div class="bg-white rounded-lg border p-3 text-center">
+            <div class="text-2xl font-bold text-slate-800">1 : 1.04</div>
+            <div class="text-xs text-slate-500">Test-to-Source Ratio</div>
+          </div>
+        </div>
+
+        <!-- Stack Info -->
+        <div class="grid grid-cols-4 gap-3 text-xs">
+          <div class="bg-white rounded-lg border p-2">
+            <div class="font-semibold text-slate-700">Language</div>
+            <div class="text-slate-500">Go 1.24</div>
+          </div>
+          <div class="bg-white rounded-lg border p-2">
+            <div class="font-semibold text-slate-700">HTTP Framework</div>
+            <div class="text-slate-500">Gin v1.9.1</div>
+          </div>
+          <div class="bg-white rounded-lg border p-2">
+            <div class="font-semibold text-slate-700">ORM / Database</div>
+            <div class="text-slate-500">GORM v1.25.10 / PostgreSQL</div>
+          </div>
+          <div class="bg-white rounded-lg border p-2">
+            <div class="font-semibold text-slate-700">Deploy</div>
+            <div class="text-slate-500">GitLab CI → Cloud Run</div>
+          </div>
+        </div>
+
+        <!-- Stack Tags -->
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="bg-slate-100 rounded px-2 py-1">Go 1.24</span>
+          <span class="bg-slate-100 rounded px-2 py-1">Gin v1.9.1</span>
+          <span class="bg-slate-100 rounded px-2 py-1">GORM v1.25.10</span>
+          <span class="bg-slate-100 rounded px-2 py-1">PostgreSQL</span>
+          <span class="bg-slate-100 rounded px-2 py-1">Azure AD JWKS</span>
+          <span class="bg-slate-100 rounded px-2 py-1">golang-migrate</span>
+          <span class="bg-slate-100 rounded px-2 py-1">Cloud Run</span>
+          <span class="bg-slate-100 rounded px-2 py-1">GitLab CI</span>
+          <span class="bg-slate-100 rounded px-2 py-1">testify/mock</span>
+          <span class="bg-slate-100 rounded px-2 py-1">excelize v2</span>
+        </div>
+
+        <!-- Top 3 Critical Findings -->
+        <div class="space-y-2">
+          <h3 class="text-sm font-semibold text-red-700 uppercase tracking-wider">Top 3 Critical Findings</h3>
+          <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm">
+            <div class="font-semibold text-red-800">1. Hardcoded Database Credentials in Source Code</div>
+            <div class="text-red-700">config.go:60 contains a hardcoded PostgreSQL password in <code class="bg-red-100 px-1 rounded text-xs">defaultDatabaseURL()</code>. Additionally, seed_delegation_pairs and fix_migration CLI tools have hardcoded DSNs.</div>
+          </div>
+          <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm">
+            <div class="font-semibold text-red-800">2. panic() in Auth Middleware Startup Path</div>
+            <div class="text-red-700">auth_middleware.go:136,144 uses <code class="bg-red-100 px-1 rounded text-xs">panic()</code> instead of returning errors when JWKS initialization fails. Application crashes with no graceful degradation.</div>
+          </div>
+          <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm">
+            <div class="font-semibold text-red-800">3. Production Auth Middleware Commented Out</div>
+            <div class="text-red-700">main.go:222-226 has the real <code class="bg-red-100 px-1 rounded text-xs">AuthMiddleware(cfg)</code> call commented out. If no MOCK/DEV flags are set, requests bypass all authentication entirely.</div>
+          </div>
+        </div>
+
+        <!-- Top 3 Quick Wins -->
+        <div class="space-y-2">
+          <h3 class="text-sm font-semibold text-emerald-700 uppercase tracking-wider">Top 3 Quick Wins</h3>
+          <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-sm">
+            <div class="font-semibold text-emerald-800">1. Uncomment Auth Middleware (~5 min)</div>
+            <div class="text-emerald-700">Uncomment <code class="bg-emerald-100 px-1 rounded text-xs">v1.Use(middleware.AuthMiddleware(cfg))</code> in main.go. Requires AZURE_TENANT_ID and AZURE_CLIENT_ID env vars in production.</div>
+          </div>
+          <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-sm">
+            <div class="font-semibold text-emerald-800">2. Add .golangci.yml (~15 min)</div>
+            <div class="text-emerald-700">Add a linter config to catch errcheck, gocritic, revive warnings. Zero code changes, immediate static analysis coverage.</div>
+          </div>
+          <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-sm">
+            <div class="font-semibold text-emerald-800">3. Remove Hardcoded Credentials (~10 min)</div>
+            <div class="text-emerald-700">Remove <code class="bg-emerald-100 px-1 rounded text-xs">defaultDatabaseURL()</code> fallback, require DATABASE_URL env var. Remove hardcoded DSNs from CLI tools.</div>
+          </div>
+        </div>
+      </header>
+
+      <!-- ============================================================ -->
+      <!-- 2. LAYER GRADES OVERVIEW                                      -->
+      <!-- ============================================================ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-semibold">2. Layer Grades Overview</h2>
+        <div class="bg-white rounded-lg border overflow-hidden">
+          <table class="text-sm w-full">
+            <thead>
+              <tr class="bg-slate-50 text-xs text-slate-500">
+                <th class="text-left px-4 py-2">Layer</th>
+                <th class="text-center px-4 py-2">Grade</th>
+                <th class="text-right px-4 py-2">Files</th>
+                <th class="text-right px-4 py-2">Lines</th>
+                <th class="text-right px-4 py-2">Anti-patterns</th>
+                <th class="text-right px-4 py-2">Healthy</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">Config &amp; Setup</td>
+                <td class="text-center"><span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-semibold">B</span></td>
+                <td class="text-right text-xs">8</td>
+                <td class="text-right text-xs">~2,014</td>
+                <td class="text-right text-xs text-red-600">4</td>
+                <td class="text-right text-xs text-emerald-600">3</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">Domain Models</td>
+                <td class="text-center"><span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-semibold">B</span></td>
+                <td class="text-right text-xs">20</td>
+                <td class="text-right text-xs">~581</td>
+                <td class="text-right text-xs text-red-600">2</td>
+                <td class="text-right text-xs text-emerald-600">3</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">DTOs &amp; Validation</td>
+                <td class="text-center"><span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-semibold">B+</span></td>
+                <td class="text-right text-xs">14</td>
+                <td class="text-right text-xs">~1,116</td>
+                <td class="text-right text-xs text-red-600">1</td>
+                <td class="text-right text-xs text-emerald-600">5</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">Repository</td>
+                <td class="text-center"><span class="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 text-xs font-semibold">C+</span></td>
+                <td class="text-right text-xs">19</td>
+                <td class="text-right text-xs">~4,786</td>
+                <td class="text-right text-xs text-red-600">5</td>
+                <td class="text-right text-xs text-emerald-600">5</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">Service</td>
+                <td class="text-center"><span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-semibold">B-</span></td>
+                <td class="text-right text-xs">17</td>
+                <td class="text-right text-xs">~4,844</td>
+                <td class="text-right text-xs text-red-600">4</td>
+                <td class="text-right text-xs text-emerald-600">6</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">Handler / Transport</td>
+                <td class="text-center"><span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-semibold">B</span></td>
+                <td class="text-right text-xs">16</td>
+                <td class="text-right text-xs">~2,876</td>
+                <td class="text-right text-xs text-red-600">6</td>
+                <td class="text-right text-xs text-emerald-600">5</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">Router &amp; Middleware</td>
+                <td class="text-center"><span class="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 text-xs font-semibold">C+</span></td>
+                <td class="text-right text-xs">5</td>
+                <td class="text-right text-xs">~417</td>
+                <td class="text-right text-xs text-red-600">4</td>
+                <td class="text-right text-xs text-emerald-600">2</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">Background Jobs</td>
+                <td class="text-center"><span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-semibold">B</span></td>
+                <td class="text-right text-xs">4</td>
+                <td class="text-right text-xs">~354</td>
+                <td class="text-right text-xs text-red-600">2</td>
+                <td class="text-right text-xs text-emerald-600">2</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">Observability</td>
+                <td class="text-center"><span class="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 text-xs font-semibold">C</span></td>
+                <td class="text-right text-xs">0</td>
+                <td class="text-right text-xs">0</td>
+                <td class="text-right text-xs text-red-600">4</td>
+                <td class="text-right text-xs text-emerald-600">0</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono text-xs">Testing</td>
+                <td class="text-center"><span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-semibold">B</span></td>
+                <td class="text-right text-xs">40</td>
+                <td class="text-right text-xs">~17,696</td>
+                <td class="text-right text-xs text-red-600">2</td>
+                <td class="text-right text-xs text-emerald-600">5</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 3. LAYER-BY-LAYER AUDIT                                       -->
+      <!-- ============================================================ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-semibold">3. Layer-by-Layer Audit</h2>
+
+        <!-- 3.1 Config & Setup -->
+        <details open class="bg-white rounded-lg border">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-semibold">B</span>
+            <span class="font-semibold">3.1 Config &amp; Setup</span>
+            <span class="text-xs text-slate-400">go.mod · main.go · cmd/ · config/ · Dockerfile · .gitlab-ci.yml</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <div class="text-xs font-mono text-slate-500 space-y-0.5">
+              <div>cmd/server/main.go · 276 lines</div>
+              <div>cmd/migrate/main.go · 140 lines</div>
+              <div>cmd/seed_delegation_pairs/main.go · 110 lines</div>
+              <div>cmd/fix_migration/main.go · 51 lines</div>
+              <div>internal/config/config.go · 63 lines</div>
+              <div>Dockerfile · 37 lines</div>
+              <div>.gitlab-ci.yml · 122 lines</div>
+              <div>go.mod · 61 lines</div>
+            </div>
+
+            <details open>
+              <summary class="text-sm font-semibold text-red-700 uppercase tracking-wider cursor-pointer">Anti-patterns (4)</summary>
+              <div class="text-sm space-y-3 mt-2">
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">config.go:54-62</div>
+                  <p class="text-red-600 font-semibold">Hardcoded database credentials in <code class="bg-red-50 px-1 rounded text-xs">defaultDatabaseURL()</code></p>
+                  <pre class="bg-slate-50 rounded p-2 mt-1 text-xs overflow-x-auto"><code>User: url.UserPassword("postgres", "-Vz*_Vf=}#1sRTD6")</code></pre>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">main.go:222-226</div>
+                  <p class="text-red-600 font-semibold">Production auth middleware commented out — requests bypass auth if no MOCK/DEV flags set</p>
+                  <pre class="bg-slate-50 rounded p-2 mt-1 text-xs overflow-x-auto"><code>// if cfg.AzureTenantID == "" || cfg.AzureClientID == "" {
+//     log.Fatal(...)
+// }
+//v1.Use(middleware.AuthMiddleware(cfg))</code></pre>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">project root</div>
+                  <p class="text-slate-700">No Makefile, no .golangci.yml, no .air.toml — missing standard Go dev tooling</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">main.go · 276 lines</div>
+                  <p class="text-slate-700">Main file is a god file — manual dependency wiring, router setup, and background job configuration all in one function</p>
+                </div>
+              </div>
+            </details>
+
+            <details>
+              <summary class="text-sm font-semibold text-emerald-700 uppercase tracking-wider cursor-pointer">Healthy Patterns (3)</summary>
+              <div class="text-sm space-y-2 mt-2">
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Multi-stage Docker build</strong> — golang:1.24-alpine builder → alpine:3.21 runtime with non-root user</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>CI pipeline</strong> — verify → build (Kaniko) → deploy (Cloud Run) with proper caching</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Embedded migrations</strong> — SQL migrations embedded in binary via Go embed</div></div>
+              </div>
+            </details>
+          </div>
+        </details>
+
+        <!-- 3.2 Domain Models -->
+        <details open class="bg-white rounded-lg border">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-semibold">B</span>
+            <span class="font-semibold">3.2 Domain Models &amp; Types</span>
+            <span class="text-xs text-slate-400">model/ · pkg/errs/ · pkg/ou/</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <div class="text-xs font-mono text-slate-500 space-y-0.5">
+              <div>model/user.go · 29 lines</div>
+              <div>model/application.go · 30 lines</div>
+              <div>model/role.go · 38 lines</div>
+              <div>model/permission.go · 38 lines</div>
+              <div>model/role_permission.go · 20 lines</div>
+              <div>model/user_role_assignment.go · 24 lines</div>
+              <div>model/ou_role_mapping.go · 32 lines</div>
+              <div>model/audit_log.go · 30 lines</div>
+              <div>model/sync_log.go · 31 lines</div>
+              <div>model/abac_bu.go · 24 lines</div>
+              <div>model/abac_division.go · 26 lines</div>
+              <div>model/abac_role.go · 33 lines</div>
+              <div>model/user_abac_assignment.go · 43 lines</div>
+              <div>model/abac_delegation.go · 35 lines</div>
+              <div>model/delegation_pair_config.go · 22 lines</div>
+              <div>model/pc_admin_app_assignment.go · 20 lines</div>
+              <div>model/role_permission_preset.go · 22 lines</div>
+              <div>model/manage_user.go · 31 lines</div>
+              <div>pkg/errs/errors.go · 39 lines</div>
+              <div>pkg/ou/match.go · 32 lines</div>
+            </div>
+
+            <details open>
+              <summary class="text-sm font-semibold text-red-700 uppercase tracking-wider cursor-pointer">Anti-patterns (2)</summary>
+              <div class="text-sm space-y-3 mt-2">
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">All 18 model files</div>
+                  <p class="text-slate-700">Anemic domain model — entities are pure data containers with no behavior, no validation, no invariant enforcement</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">model/*.go</div>
+                  <p class="text-slate-700">Public mutable fields — <code class="bg-slate-50 px-1 rounded text-xs">Code: ""</code>, <code class="bg-slate-50 px-1 rounded text-xs">Status: "garbage"</code> all pass compilation</p>
+                </div>
+              </div>
+            </details>
+
+            <details>
+              <summary class="text-sm font-semibold text-emerald-700 uppercase tracking-wider cursor-pointer">Healthy Patterns (3)</summary>
+              <div class="text-sm space-y-2 mt-2">
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Typed error hierarchy</strong> — <code class="bg-slate-50 px-1 rounded text-xs">ErrUserNotFound</code> wraps <code class="bg-slate-50 px-1 rounded text-xs">ErrNotFound</code>, compatible with <code class="bg-slate-50 px-1 rounded text-xs">errors.Is()</code></div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>No outer imports</strong> — model package imports only stdlib + GORM tags</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Pure data</strong> — no side effects, no I/O, no methods beyond TableName()</div></div>
+              </div>
+            </details>
+          </div>
+        </details>
+
+        <!-- 3.3 DTOs & Validation -->
+        <details open class="bg-white rounded-lg border">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-semibold">B+</span>
+            <span class="font-semibold">3.3 DTOs &amp; Validation</span>
+            <span class="text-xs text-slate-400">dto/</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <div class="text-xs font-mono text-slate-500 space-y-0.5">
+              <div>abac_dto.go · 183 lines</div>
+              <div>user_dto.go · 189 lines</div>
+              <div>ou_dto.go · 118 lines</div>
+              <div>application_dto.go · 107 lines</div>
+              <div>role_dto.go · 89 lines</div>
+              <div>manage_user_dto.go · 71 lines</div>
+              <div>permission_dto.go · 71 lines</div>
+              <div>delegation_dto.go · 73 lines</div>
+              <div>role_permission_dto.go · 59 lines</div>
+              <div>manual_assignment_dto.go · 39 lines</div>
+              <div>acl_dto.go · 39 lines</div>
+              <div>role_permission_preset_dto.go · 25 lines</div>
+              <div>audit_dto.go · 31 lines</div>
+              <div>overview_dto.go · 22 lines</div>
+            </div>
+
+            <details open>
+              <summary class="text-sm font-semibold text-red-700 uppercase tracking-wider cursor-pointer">Anti-patterns (1)</summary>
+              <div class="text-sm space-y-3 mt-2">
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">audit_dto.go:13</div>
+                  <p class="text-slate-700">Payload field uses <code class="bg-slate-50 px-1 rounded text-xs">interface{}</code> instead of typed struct — loses type safety for audit payload data</p>
+                </div>
+              </div>
+            </details>
+
+            <details>
+              <summary class="text-sm font-semibold text-emerald-700 uppercase tracking-wider cursor-pointer">Healthy Patterns (5)</summary>
+              <div class="text-sm space-y-2 mt-2">
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Distinct request/response types</strong> — DTOs are separate from domain entities</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Consistent ErrorResponse</strong> — all handlers use <code class="bg-slate-50 px-1 rounded text-xs">dto.ErrorResponse{Message, Code}</code></div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Gin binding tags</strong> — request DTOs use <code class="bg-slate-50 px-1 rounded text-xs">binding:"required"</code> for validation</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>JSON tags</strong> — consistent snake_case JSON naming throughout</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Injected fields pattern</strong> — context data (ActorID, AppCode) injected via DTO rather than passed separately</div></div>
+              </div>
+            </details>
+          </div>
+        </details>
+
+        <!-- 3.4 Repository Layer -->
+        <details open class="bg-white rounded-lg border">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 text-xs font-semibold">C+</span>
+            <span class="font-semibold">3.4 Repository Layer</span>
+            <span class="text-xs text-slate-400">repository/</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <div class="text-xs font-mono text-slate-500 space-y-0.5">
+              <div>manage_user_repository.go · 705 lines</div>
+              <div>user_repository.go · 591 lines</div>
+              <div>role_repository.go · 417 lines</div>
+              <div>ou_repository.go · 378 lines</div>
+              <div>acl_repository.go · 393 lines</div>
+              <div>abac_delegation_repository.go · 252 lines</div>
+              <div>abac_assignment_repository.go</div>
+              <div>abac_bu_repository.go</div>
+              <div>abac_division_repository.go</div>
+              <div>abac_role_repository.go</div>
+              <div>audit_repository.go</div>
+              <div>application_repository.go</div>
+              <div>permission_repository.go</div>
+              <div>role_permission_repository.go</div>
+              <div>role_permission_preset_repository.go</div>
+              <div>manual_assignment_repository.go</div>
+              <div>overview_repository.go</div>
+              <div>sync_log_repository.go</div>
+              <div>delegation_pair_config_repository.go</div>
+            </div>
+
+            <details open>
+              <summary class="text-sm font-semibold text-red-700 uppercase tracking-wider cursor-pointer">Anti-patterns (5)</summary>
+              <div class="text-sm space-y-3 mt-2">
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">manage_user_repository.go · 705 lines</div>
+                  <p class="text-slate-700">God file — exceeds 500-line threshold significantly. Contains user management, search, export, and admin operations in a single file.</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">user_repository.go:224-348</div>
+                  <p class="text-slate-700">Business logic in SQL — OU wildcard matching rules encoded directly in SQL, untestable outside database</p>
+                  <pre class="bg-slate-50 rounded p-2 mt-1 text-xs overflow-x-auto"><code>AND (m.office = '*' OR m.office = COALESCE(u.office, ''))
+AND (m.department = '*' OR m.department = COALESCE(u.department, ''))
+AND (m.division = '*' OR m.division = COALESCE(u.division, ''))
+AND (m.section = '*' OR m.section = COALESCE(u.title, ''))</code></pre>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">user_repository.go:224-269 vs 290-348</div>
+                  <p class="text-slate-700">Duplicated 120-line UNION query with minor column differences — violates DRY</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">Multiple repos</div>
+                  <p class="text-slate-700">Mixed GORM model methods and raw SQL without clear separation criteria</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">role_repository.go (interface)</div>
+                  <p class="text-slate-700">Interface with 12+ methods — exceeds 10-method threshold, should be split into read/write interfaces</p>
+                </div>
+              </div>
+            </details>
+
+            <details>
+              <summary class="text-sm font-semibold text-emerald-700 uppercase tracking-wider cursor-pointer">Healthy Patterns (5)</summary>
+              <div class="text-sm space-y-2 mt-2">
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Interface implementations</strong> — every repo implements a domain-defined interface</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Error mapping</strong> — <code class="bg-slate-50 px-1 rounded text-xs">isDuplicateKeyError()</code> translates SQLSTATE 23505 → <code class="bg-slate-50 px-1 rounded text-xs">errs.ErrConflict</code></div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>SQL injection prevention</strong> — parameterized queries + sorting allowlist</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>N+1 prevention</strong> — batch count queries return maps for efficient lookups</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Transaction pattern</strong> — <code class="bg-slate-50 px-1 rounded text-xs">ReplaceByPattern()</code> wraps delete+insert in GORM transaction</div></div>
+              </div>
+            </details>
+          </div>
+        </details>
+
+        <!-- 3.5 Service Layer -->
+        <details open class="bg-white rounded-lg border">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-semibold">B-</span>
+            <span class="font-semibold">3.5 Service Layer</span>
+            <span class="text-xs text-slate-400">service/</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <div class="text-xs font-mono text-slate-500 space-y-0.5">
+              <div>abac_sync_service.go · 764 lines</div>
+              <div>user_service.go · 728 lines</div>
+              <div>ou_service.go · 508 lines</div>
+              <div>abac_assignment_service.go · 416 lines</div>
+              <div>manage_user_service.go · 311 lines</div>
+              <div>role_service.go · 331 lines</div>
+              <div>abac_delegation_service.go · ~250 lines</div>
+              <div>permission_service.go · 255 lines</div>
+              <div>abac_master_service.go · ~200 lines</div>
+              <div>manual_assignment_service.go · ~200 lines</div>
+              <div>activity_service.go · ~150 lines</div>
+              <div>acl_service.go · ~200 lines</div>
+              <div>overview_service.go · ~100 lines</div>
+              <div>role_permission_service.go · ~150 lines</div>
+              <div>role_permission_preset_service.go · ~150 lines</div>
+              <div>rbac_guard.go · ~100 lines</div>
+            </div>
+
+            <details open>
+              <summary class="text-sm font-semibold text-red-700 uppercase tracking-wider cursor-pointer">Anti-patterns (4)</summary>
+              <div class="text-sm space-y-3 mt-2">
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">abac_sync_service.go · 764 lines</div>
+                  <p class="text-slate-700">God file — 764 lines with 11 repository dependencies. Single service handling 5 entity sync operations with massive switch logic.</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">role_service.go:183,227,259 + 20+ locations across services</div>
+                  <p class="text-slate-700">Audit logging boilerplate repeated in every mutation — identical 6-line pattern scattered 20+ times across 5+ files</p>
+                  <pre class="bg-slate-50 rounded p-2 mt-1 text-xs overflow-x-auto"><code>if auditErr := s.auditRepo.LogApp(ctx, app.ID, "role.create", "role",
+    uintPtr(role.ID), req.ActorID, map[string]any{"after": role},
+); auditErr != nil {
+    log.Printf("WARN role.create audit log failed: %v", auditErr)
+}</code></pre>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">ou_service.go, abac_assignment_service.go</div>
+                  <p class="text-slate-700">No service-level transaction control — services can't coordinate transactions across multiple repositories</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">user_service.go · 728 lines</div>
+                  <p class="text-slate-700">Large file exceeds 500-line threshold — user directory, search, and export concerns could be split</p>
+                </div>
+              </div>
+            </details>
+
+            <details>
+              <summary class="text-sm font-semibold text-emerald-700 uppercase tracking-wider cursor-pointer">Healthy Patterns (6)</summary>
+              <div class="text-sm space-y-2 mt-2">
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Interface-first</strong> — every service defined as interface before implementation</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>No HTTP types</strong> — services never import gin.Context or HTTP status codes</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Error wrapping</strong> — domain errors wrapped with <code class="bg-slate-50 px-1 rounded text-xs">fmt.Errorf("context: %w", errs.ErrX)</code></div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Use-case methods</strong> — each method maps to one use case (Create, Update, Delete, List)</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Repo interfaces</strong> — services depend on repository interfaces, never concrete implementations</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>DTO mappers</strong> — entity-to-response mapping via helper functions</div></div>
+              </div>
+            </details>
+          </div>
+        </details>
+
+        <!-- 3.6 Handler / Transport -->
+        <details open class="bg-white rounded-lg border">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-semibold">B</span>
+            <span class="font-semibold">3.6 Handler / Transport Layer</span>
+            <span class="text-xs text-slate-400">handler/</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <div class="text-xs font-mono text-slate-500 space-y-0.5">
+              <div>manage_user_handler.go · 362 lines</div>
+              <div>ou_handler.go · 316 lines</div>
+              <div>role_handler.go · 302 lines</div>
+              <div>user_handler.go · 258 lines</div>
+              <div>application_handler.go · 234 lines</div>
+              <div>permission_handler.go · 204 lines</div>
+              <div>abac_assignment_handler.go · 201 lines</div>
+              <div>role_permission_preset_handler.go · 147 lines</div>
+              <div>manual_assignment_handler.go · 174 lines</div>
+              <div>abac_master_handler.go · 140 lines</div>
+              <div>role_permission_handler.go · 115 lines</div>
+              <div>abac_delegation_handler.go · 109 lines</div>
+              <div>acl_handler.go · 98 lines</div>
+              <div>sync_handler.go · 93 lines</div>
+              <div>activity_handler.go · 73 lines</div>
+              <div>overview_handler.go · 50 lines</div>
+            </div>
+
+            <details open>
+              <summary class="text-sm font-semibold text-red-700 uppercase tracking-wider cursor-pointer">Anti-patterns (6)</summary>
+              <div class="text-sm space-y-3 mt-2">
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">manage_user_handler.go:205-223</div>
+                  <p class="text-slate-700">Thai date formatting logic in handler — business/display logic that belongs in service or DTO layer</p>
+                  <pre class="bg-slate-50 rounded p-2 mt-1 text-xs overflow-x-auto"><code>var thaiMonths = [...]string{"", "ม.ค.", "ก.พ.", ...}
+func formatThaiDate(t time.Time) string {
+    t = t.In(bangkokTZ)
+    return fmt.Sprintf("%d %s %d", t.Day(), thaiMonths[t.Month()], t.Year()+543)
+}</code></pre>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">manage_user_handler.go:245-340, user_handler.go:110-210</div>
+                  <p class="text-slate-700">Excel generation logic in handler — cell styling, column widths, freeze panes all in HTTP handler</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">application_handler.go:214, ou_handler.go:281, abac_assignment_handler.go:49</div>
+                  <p class="text-slate-700">Authorization checks scattered across handlers — <code class="bg-slate-50 px-1 rounded text-xs">isSuperAdmin()</code>, <code class="bg-slate-50 px-1 rounded text-xs">isAdmin()</code>, <code class="bg-slate-50 px-1 rounded text-xs">hasPermissionCode()</code> should be middleware</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">10+ handler files</div>
+                  <p class="text-slate-700">Duplicated helper functions — <code class="bg-slate-50 px-1 rounded text-xs">actorIDFromContext()</code>, <code class="bg-slate-50 px-1 rounded text-xs">actorNameFromContext()</code>, <code class="bg-slate-50 px-1 rounded text-xs">handleError()</code> copy-pasted with variations</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">sync_handler.go:64-70</div>
+                  <p class="text-slate-700">Fire-and-forget goroutine with swallowed error — <code class="bg-slate-50 px-1 rounded text-xs">go func() { ... _ = err }()</code></p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-gray-100 text-gray-700 rounded px-1.5 py-0.5 text-xs font-semibold">Low</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">user_handler.go:44-53</div>
+                  <p class="text-slate-700">Single endpoint routes to two different behaviors based on query param presence (<code class="bg-slate-50 px-1 rounded text-xs">page</code> → directory mode, else autocomplete)</p>
+                </div>
+              </div>
+            </details>
+
+            <details>
+              <summary class="text-sm font-semibold text-emerald-700 uppercase tracking-wider cursor-pointer">Healthy Patterns (5)</summary>
+              <div class="text-sm space-y-2 mt-2">
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Thin delegation</strong> — handlers parse request → call service → map response</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>DTO separation</strong> — handlers never return raw model structs</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>No skip-layer</strong> — handlers import services only, never repos</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Consistent error envelope</strong> — <code class="bg-slate-50 px-1 rounded text-xs">dto.ErrorResponse{Message, Code}</code></div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Proper HTTP status codes</strong> — 201 for create, 204 for delete, 200 for get/list</div></div>
+              </div>
+            </details>
+          </div>
+        </details>
+
+        <!-- 3.7 Router & Middleware -->
+        <details open class="bg-white rounded-lg border">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 text-xs font-semibold">C+</span>
+            <span class="font-semibold">3.7 Router &amp; Middleware</span>
+            <span class="text-xs text-slate-400">cmd/server/main.go (routes) · middleware/</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <div class="text-xs font-mono text-slate-500 space-y-0.5">
+              <div>middleware/auth_middleware.go · 306 lines</div>
+              <div>middleware/cors_middleware.go · 81 lines</div>
+              <div>middleware/context_keys.go · 30 lines</div>
+              <div>Routes in cmd/server/main.go:194-271</div>
+            </div>
+
+            <details open>
+              <summary class="text-sm font-semibold text-red-700 uppercase tracking-wider cursor-pointer">Anti-patterns (4)</summary>
+              <div class="text-sm space-y-3 mt-2">
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">auth_middleware.go:136,144</div>
+                  <p class="text-slate-700"><code class="bg-slate-50 px-1 rounded text-xs">panic()</code> on JWKS initialization failure — crashes entire application instead of graceful error</p>
+                  <pre class="bg-slate-50 rounded p-2 mt-1 text-xs overflow-x-auto"><code>if err != nil {
+    panic(fmt.Sprintf("failed to initialise Azure AD JWKS storage (%s): %v", jwksURL, err))
+}</code></pre>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">auth_middleware.go:126,140</div>
+                  <p class="text-slate-700"><code class="bg-slate-50 px-1 rounded text-xs">context.Background()</code> in JWKS storage — loses tracing/cancellation context</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">No router/ package</div>
+                  <p class="text-slate-700">Routes defined directly in main.go — no separation of routing from startup logic</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">auth_middleware.go:268-306</div>
+                  <p class="text-slate-700">Middleware directly uses GORM DB for user upsert — <code class="bg-slate-50 px-1 rounded text-xs">upsertUserFromClaims()</code> bypasses repository layer</p>
+                </div>
+              </div>
+            </details>
+
+            <details>
+              <summary class="text-sm font-semibold text-emerald-700 uppercase tracking-wider cursor-pointer">Healthy Patterns (2)</summary>
+              <div class="text-sm space-y-2 mt-2">
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>CORS first</strong> — CORS middleware applied before auth so OPTIONS preflight works</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Multiple auth strategies</strong> — Real Azure AD, Dev, Mock modes cleanly separated</div></div>
+              </div>
+            </details>
+          </div>
+        </details>
+
+        <!-- 3.8 Background Jobs -->
+        <details class="bg-white rounded-lg border">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-semibold">B</span>
+            <span class="font-semibold">3.8 Background Jobs &amp; CLI</span>
+            <span class="text-xs text-slate-400">job/ · sync/ · cmd/</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <div class="text-xs font-mono text-slate-500 space-y-0.5">
+              <div>job/access_grant_status_job.go · 108 lines</div>
+              <div>job/abac_sync_job.go · 46 lines</div>
+              <div>sync/upstream_client.go · 153 lines</div>
+              <div>sync/retry.go · 47 lines</div>
+            </div>
+
+            <details open>
+              <summary class="text-sm font-semibold text-red-700 uppercase tracking-wider cursor-pointer">Anti-patterns (2)</summary>
+              <div class="text-sm space-y-3 mt-2">
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">job/abac_sync_job.go:37, job/access_grant_status_job.go:54</div>
+                  <p class="text-slate-700"><code class="bg-slate-50 px-1 rounded text-xs">context.Background()</code> in job execution — no timeout or cancellation propagation</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <div class="font-mono text-xs text-slate-500 mt-1">sync/upstream_client.go:6-73</div>
+                  <p class="text-slate-700">6 TODO comments on upstream schema — indicates incomplete implementation, upstream API spec not yet defined</p>
+                </div>
+              </div>
+            </details>
+
+            <details>
+              <summary class="text-sm font-semibold text-emerald-700 uppercase tracking-wider cursor-pointer">Healthy Patterns (2)</summary>
+              <div class="text-sm space-y-2 mt-2">
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Clean sync chain</strong> — BUs → Divisions → Roles → Assignments → Delegations with per-entity failure isolation</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Interface-based client</strong> — <code class="bg-slate-50 px-1 rounded text-xs">UpstreamABACClient</code> interface with mock/real implementations</div></div>
+              </div>
+            </details>
+          </div>
+        </details>
+
+        <!-- 3.9 Observability -->
+        <details class="bg-white rounded-lg border">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 text-xs font-semibold">C</span>
+            <span class="font-semibold">3.9 Observability</span>
+            <span class="text-xs text-slate-400">No dedicated package</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <div class="text-xs font-mono text-slate-500">
+              No dedicated observability package exists. Logging is via stdlib <code>log</code> and <code>fmt.Printf</code>.
+            </div>
+
+            <details open>
+              <summary class="text-sm font-semibold text-red-700 uppercase tracking-wider cursor-pointer">Anti-patterns (4)</summary>
+              <div class="text-sm space-y-3 mt-2">
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <p class="text-slate-700">No structured logging — uses <code class="bg-slate-50 px-1 rounded text-xs">log.Printf()</code> and <code class="bg-slate-50 px-1 rounded text-xs">fmt.Printf()</code> everywhere</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <p class="text-slate-700">No request tracing — no request IDs, no OpenTelemetry integration</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <p class="text-slate-700">No Prometheus metrics — no request latency, error rate, or throughput monitoring</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <p class="text-slate-700">No graceful shutdown — <code class="bg-slate-50 px-1 rounded text-xs">r.Run()</code> blocks with no signal handling</p>
+                </div>
+              </div>
+            </details>
+          </div>
+        </details>
+
+        <!-- 3.10 Testing -->
+        <details class="bg-white rounded-lg border">
+          <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+            <span class="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-xs font-semibold">B</span>
+            <span class="font-semibold">3.10 Testing</span>
+            <span class="text-xs text-slate-400">40 test files · ~17,696 lines</span>
+          </summary>
+          <div class="px-4 pb-4 space-y-3">
+            <div class="text-xs font-mono text-slate-500 space-y-0.5">
+              <div>service/user_service_test.go · 1,497 lines</div>
+              <div>handler/ou_handler_test.go · 1,436 lines</div>
+              <div>cmd/server/mock_repos.go · 1,351 lines</div>
+              <div>service/abac_sync_service_test.go · 931 lines</div>
+              <div>service/ou_service_test.go · 863 lines</div>
+              <div>service/abac_assignment_service_test.go · 832 lines</div>
+              <div>handler/role_handler_test.go · 708 lines</div>
+              <div>12 handler tests, 10 service tests, 2 middleware tests</div>
+              <div>3 migration tests (migration036, 037, 038)</div>
+              <div>1 repository test</div>
+            </div>
+
+            <details open>
+              <summary class="text-sm font-semibold text-red-700 uppercase tracking-wider cursor-pointer">Anti-patterns (2)</summary>
+              <div class="text-sm space-y-3 mt-2">
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <p class="text-slate-700">Giant test files — 6 test files exceed 700 lines, making test navigation difficult</p>
+                </div>
+                <div class="border-l-2 border-red-300 pl-3">
+                  <span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span>
+                  <p class="text-slate-700">No integration tests — all tests use testify/mock with no real database testing (no testcontainers/dockertest)</p>
+                </div>
+              </div>
+            </details>
+
+            <details>
+              <summary class="text-sm font-semibold text-emerald-700 uppercase tracking-wider cursor-pointer">Healthy Patterns (5)</summary>
+              <div class="text-sm space-y-2 mt-2">
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Comprehensive mock coverage</strong> — 47 mock structs covering all repository interfaces</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>testify/mock</strong> — consistent mocking framework across all test files</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Table-driven tests</strong> — test cases organized in struct slices</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Handler + Service + Middleware coverage</strong> — tests at every layer</div></div>
+                <div class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">&#10003;</span><div><strong>Migration tests</strong> — dedicated tests for complex data migrations (036, 037, 038)</div></div>
+              </div>
+            </details>
+          </div>
+        </details>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 4. ANTI-PATTERN CATALOG                                       -->
+      <!-- ============================================================ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-semibold">4. Anti-Pattern Catalog</h2>
+        <div class="bg-white rounded-lg border overflow-hidden">
+          <table class="text-sm w-full">
+            <thead>
+              <tr class="bg-slate-50 text-xs text-slate-500">
+                <th class="text-left px-4 py-2">Pattern</th>
+                <th class="text-center px-4 py-2">Severity</th>
+                <th class="text-right px-4 py-2">Count</th>
+                <th class="text-left px-4 py-2">Key Files</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-t bg-red-50">
+                <td class="px-4 py-2">Hardcoded credentials/DSN</td>
+                <td class="text-center"><span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span></td>
+                <td class="text-right text-red-600 font-semibold">3</td>
+                <td class="px-4 py-2 font-mono text-xs">config.go, seed_delegation_pairs, fix_migration</td>
+              </tr>
+              <tr class="border-t bg-red-50">
+                <td class="px-4 py-2">Production auth disabled</td>
+                <td class="text-center"><span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span></td>
+                <td class="text-right text-red-600 font-semibold">1</td>
+                <td class="px-4 py-2 font-mono text-xs">main.go:222-226</td>
+              </tr>
+              <tr class="border-t bg-red-50">
+                <td class="px-4 py-2">God files (>500 lines)</td>
+                <td class="text-center"><span class="bg-red-100 text-red-700 rounded px-1.5 py-0.5 text-xs font-semibold">Critical</span></td>
+                <td class="text-right text-red-600 font-semibold">5 src</td>
+                <td class="px-4 py-2 font-mono text-xs">abac_sync_service(764), user_service(728), manage_user_repo(705), user_repo(591), ou_service(508)</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">Business logic in SQL</td>
+                <td class="text-center"><span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span></td>
+                <td class="text-right text-orange-600 font-semibold">1</td>
+                <td class="px-4 py-2 font-mono text-xs">user_repository.go:224-348</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">Business logic in handlers</td>
+                <td class="text-center"><span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span></td>
+                <td class="text-right text-orange-600 font-semibold">5</td>
+                <td class="px-4 py-2 font-mono text-xs">manage_user_handler, user_handler, acl_handler, application_handler, activity_handler</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">panic() in production code</td>
+                <td class="text-center"><span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span></td>
+                <td class="text-right text-orange-600 font-semibold">2</td>
+                <td class="px-4 py-2 font-mono text-xs">auth_middleware.go:136,144</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">No transaction coordination</td>
+                <td class="text-center"><span class="bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 text-xs font-semibold">High</span></td>
+                <td class="text-right text-orange-600 font-semibold">3</td>
+                <td class="px-4 py-2 font-mono text-xs">ou_service, abac_assignment_service, abac_sync_service</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">context.Background() in request/job paths</td>
+                <td class="text-center"><span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span></td>
+                <td class="text-right">4</td>
+                <td class="px-4 py-2 font-mono text-xs">auth_middleware, abac_sync_job, access_grant_status_job</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">interface{} overuse</td>
+                <td class="text-center"><span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span></td>
+                <td class="text-right">10</td>
+                <td class="px-4 py-2 font-mono text-xs">audit_dto, handlers, tests</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">Swallowed errors (_ = )</td>
+                <td class="text-center"><span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span></td>
+                <td class="text-right">17</td>
+                <td class="px-4 py-2 font-mono text-xs">sync_handler, user_handler, acl_service, tests</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">Duplicated UNION queries</td>
+                <td class="text-center"><span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span></td>
+                <td class="text-right">1</td>
+                <td class="px-4 py-2 font-mono text-xs">user_repository.go</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">Auth logic bypassing repo layer</td>
+                <td class="text-center"><span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span></td>
+                <td class="text-right">1</td>
+                <td class="px-4 py-2 font-mono text-xs">auth_middleware.go:268-306</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">No structured logging</td>
+                <td class="text-center"><span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-xs font-semibold">Medium</span></td>
+                <td class="text-right">~50+</td>
+                <td class="px-4 py-2 font-mono text-xs">project-wide</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">TODO/FIXME/HACK comments</td>
+                <td class="text-center"><span class="bg-gray-100 text-gray-700 rounded px-1.5 py-0.5 text-xs font-semibold">Low</span></td>
+                <td class="text-right">13</td>
+                <td class="px-4 py-2 font-mono text-xs">upstream_client(6), handlers(4), context_keys(2), mock(1)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 5. DATABASE MIGRATIONS REVIEW                                 -->
+      <!-- ============================================================ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-semibold">5. Database Migrations Review</h2>
+        <div class="bg-white rounded-lg border p-4 space-y-3">
+          <div class="grid grid-cols-3 gap-4 text-sm">
+            <div><span class="text-slate-500">Total migrations:</span> <span class="font-semibold">56 pairs (112 SQL files)</span></div>
+            <div><span class="text-slate-500">Naming:</span> <span class="font-semibold">Sequential (000001–000056)</span></div>
+            <div><span class="text-slate-500">Rollback support:</span> <span class="font-semibold text-emerald-600">All have down migrations</span></div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-4 text-sm">
+            <div><span class="text-slate-500">Schema migrations:</span> <span class="font-semibold">41</span></div>
+            <div><span class="text-slate-500">Data migrations:</span> <span class="font-semibold">7 (seed_*)</span></div>
+            <div><span class="text-slate-500">Mixed schema/data:</span> <span class="font-semibold text-emerald-600">No — well separated</span></div>
+          </div>
+
+          <h3 class="text-sm font-semibold text-amber-700 uppercase tracking-wider mt-4">Destructive Migrations (DROP in up files)</h3>
+          <div class="text-xs font-mono text-slate-500 space-y-0.5">
+            <div>000022_drop_token_sessions.up.sql — intentional cleanup</div>
+            <div>000023_drop_ad_groups.up.sql — drops 2 tables, intentional cleanup</div>
+            <div>000029_drop_role_menu_mappings.up.sql — intentional cleanup</div>
+            <div>000030_drop_menus.up.sql — intentional cleanup</div>
+            <div>000036_drop_permission_center_migrations_table.up.sql — cleanup legacy</div>
+            <div>000037_drop_permission_center_seeds_table.up.sql — cleanup legacy</div>
+            <div>000046_drop_is_self_from_applications.up.sql — schema refinement</div>
+          </div>
+          <p class="text-xs text-slate-500">All destructive migrations appear to be deliberate cleanup of deprecated features with proper down migrations.</p>
+
+          <h3 class="text-sm font-semibold text-slate-700 uppercase tracking-wider mt-4">Migration Evolution</h3>
+          <div class="text-xs text-slate-600 space-y-1">
+            <div><span class="font-semibold">000001–000007:</span> Core RBAC tables (applications, users, roles, permissions, OU mappings, audit logs)</div>
+            <div><span class="font-semibold">000008–000021:</span> Schema evolution (Azure AD fields, status tracking, user assignments)</div>
+            <div><span class="font-semibold">000022–000030:</span> Cleanup phase (drop unused tables: token_sessions, ad_groups, menus)</div>
+            <div><span class="font-semibold">000031–000046:</span> Feature additions (permission groups, presets, role delegations, PC admin)</div>
+            <div><span class="font-semibold">000047–000056:</span> ABAC Phase 2 (master tables, assignments, access_model, seeding)</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 6. API DESIGN REVIEW                                         -->
+      <!-- ============================================================ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-semibold">6. API Design Review</h2>
+
+        <div class="bg-white rounded-lg border p-4 space-y-3">
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div class="text-slate-500">Naming convention</div>
+              <div class="font-semibold">Plural, kebab-case — consistent</div>
+            </div>
+            <div>
+              <div class="text-slate-500">API versioning</div>
+              <div class="font-semibold">URL path: <code class="bg-slate-50 px-1 rounded text-xs">/api/v1/</code></div>
+            </div>
+            <div>
+              <div class="text-slate-500">Status code usage</div>
+              <div class="font-semibold text-emerald-600">200/201/204/400/401/403/404/409/500 — correct</div>
+            </div>
+            <div>
+              <div class="text-slate-500">Pagination</div>
+              <div class="font-semibold text-amber-600">Offset-based (page/page_size), inconsistent defaults</div>
+            </div>
+            <div>
+              <div class="text-slate-500">Error format</div>
+              <div class="font-semibold text-emerald-600">Uniform <code class="bg-slate-50 px-1 rounded text-xs">{message, code}</code></div>
+            </div>
+            <div>
+              <div class="text-slate-500">Auth model</div>
+              <div class="font-semibold text-amber-600">Commented out for production</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Full Endpoint Table -->
+        <div class="bg-white rounded-lg border overflow-hidden">
+          <table class="text-xs w-full">
+            <thead>
+              <tr class="bg-slate-50 text-slate-500">
+                <th class="text-left px-3 py-1.5">Method</th>
+                <th class="text-left px-3 py-1.5">Path</th>
+                <th class="text-left px-3 py-1.5">Handler</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/health</td><td>inline</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/users</td><td>user_handler.Search</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/users/export</td><td>user_handler.Export</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps</td><td>app_handler.List</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-blue-100 text-blue-700 rounded px-1">POST</span></td><td class="font-mono">/api/v1/apps</td><td>app_handler.Create</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/dropdown</td><td>app_handler.Dropdown</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code</td><td>app_handler.GetByCode</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-amber-100 text-amber-700 rounded px-1">PUT</span></td><td class="font-mono">/api/v1/apps/:app_code</td><td>app_handler.Update</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-red-100 text-red-700 rounded px-1">DELETE</span></td><td class="font-mono">/api/v1/apps/:app_code</td><td>app_handler.Deactivate</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code/roles</td><td>role_handler.List</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-blue-100 text-blue-700 rounded px-1">POST</span></td><td class="font-mono">/api/v1/apps/:app_code/roles</td><td>role_handler.Create</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code/roles/stats</td><td>role_handler.Stats</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code/roles/:role_id</td><td>role_handler.GetByID</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-amber-100 text-amber-700 rounded px-1">PUT</span></td><td class="font-mono">/api/v1/apps/:app_code/roles/:role_id</td><td>role_handler.Update</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-red-100 text-red-700 rounded px-1">DELETE</span></td><td class="font-mono">/api/v1/apps/:app_code/roles/:role_id</td><td>role_handler.Delete</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code/roles/:role_id/permissions</td><td>rp_handler.Get</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-amber-100 text-amber-700 rounded px-1">PUT</span></td><td class="font-mono">/api/v1/apps/:app_code/roles/:role_id/permissions</td><td>rp_handler.Set</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code/roles/:role_id/permission-presets</td><td>preset_handler.List</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-blue-100 text-blue-700 rounded px-1">POST</span></td><td class="font-mono">/api/v1/apps/:app_code/roles/:role_id/permission-presets</td><td>preset_handler.Create</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-red-100 text-red-700 rounded px-1">DELETE</span></td><td class="font-mono">/api/v1/apps/:app_code/roles/:role_id/permission-presets/:preset_id</td><td>preset_handler.Delete</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code/permissions</td><td>perm_handler.List</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-blue-100 text-blue-700 rounded px-1">POST</span></td><td class="font-mono">/api/v1/apps/:app_code/permissions</td><td>perm_handler.Create</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code/permissions/:permission_id</td><td>perm_handler.GetByID</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-amber-100 text-amber-700 rounded px-1">PUT</span></td><td class="font-mono">/api/v1/apps/:app_code/permissions/:permission_id</td><td>perm_handler.Update</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-red-100 text-red-700 rounded px-1">DELETE</span></td><td class="font-mono">/api/v1/apps/:app_code/permissions/:permission_id</td><td>perm_handler.Delete</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code/ou-mappings</td><td>ou_handler.List</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-blue-100 text-blue-700 rounded px-1">POST</span></td><td class="font-mono">/api/v1/apps/:app_code/ou-mappings</td><td>ou_handler.Create</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-blue-100 text-blue-700 rounded px-1">POST</span></td><td class="font-mono">/api/v1/apps/:app_code/ou-mappings/preview</td><td>ou_handler.Preview</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code/ou-mappings/:mapping_id</td><td>ou_handler.GetByID</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-amber-100 text-amber-700 rounded px-1">PUT</span></td><td class="font-mono">/api/v1/apps/:app_code/ou-mappings/:mapping_id</td><td>ou_handler.Update</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-red-100 text-red-700 rounded px-1">DELETE</span></td><td class="font-mono">/api/v1/apps/:app_code/ou-mappings/:mapping_id</td><td>ou_handler.Delete</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code/manual-assignments</td><td>ma_handler.List</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-blue-100 text-blue-700 rounded px-1">POST</span></td><td class="font-mono">/api/v1/apps/:app_code/manual-assignments</td><td>ma_handler.Create</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-amber-100 text-amber-700 rounded px-1">PUT</span></td><td class="font-mono">/api/v1/apps/:app_code/manual-assignments/:assignment_id</td><td>ma_handler.Update</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-red-100 text-red-700 rounded px-1">DELETE</span></td><td class="font-mono">/api/v1/apps/:app_code/manual-assignments/:assignment_id</td><td>ma_handler.Delete</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code/activity</td><td>activity_handler.List</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code/overview</td><td>overview_handler.Get</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code/abac/bus</td><td>abac_master.ListBUs</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code/abac/divisions</td><td>abac_master.ListDivisions</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code/abac/roles</td><td>abac_master.ListRoles</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code/abac/assignments</td><td>abac_assign.List</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-blue-100 text-blue-700 rounded px-1">POST</span></td><td class="font-mono">/api/v1/apps/:app_code/abac/assignments</td><td>abac_assign.Create</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-violet-100 text-violet-700 rounded px-1">PATCH</span></td><td class="font-mono">/api/v1/apps/:app_code/abac/assignments/:id</td><td>abac_assign.Update</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-red-100 text-red-700 rounded px-1">DELETE</span></td><td class="font-mono">/api/v1/apps/:app_code/abac/assignments/:id</td><td>abac_assign.Delete</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code/abac/delegations</td><td>abac_deleg.ListByApp</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code/abac/delegations/:id</td><td>abac_deleg.GetByID</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/apps/:app_code/sync/trigger</td><td>sync_handler.Trigger</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/roles/dropdown</td><td>role_handler.Dropdown</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/ou-options</td><td>ou_handler.GetOUOptions</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/ou</td><td>ou_handler.GetOULevel</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/acl/check</td><td>acl_handler.Check</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/manage-users</td><td>manage_user.List</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/manage-users/stats</td><td>manage_user.Stats</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-emerald-100 text-emerald-700 rounded px-1">GET</span></td><td class="font-mono">/api/v1/manage-users/export</td><td>manage_user.Export</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-blue-100 text-blue-700 rounded px-1">POST</span></td><td class="font-mono">/api/v1/manage-users/invite</td><td>manage_user.Invite</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-violet-100 text-violet-700 rounded px-1">PATCH</span></td><td class="font-mono">/api/v1/manage-users/:id</td><td>manage_user.Update</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-violet-100 text-violet-700 rounded px-1">PATCH</span></td><td class="font-mono">/api/v1/manage-users/:id/suspend</td><td>manage_user.Suspend</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-violet-100 text-violet-700 rounded px-1">PATCH</span></td><td class="font-mono">/api/v1/manage-users/:id/activate</td><td>manage_user.Activate</td></tr>
+              <tr class="border-t"><td class="px-3 py-1"><span class="bg-blue-100 text-blue-700 rounded px-1">POST</span></td><td class="font-mono">/api/v1/sync/trigger</td><td>sync_handler.Trigger</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 7. ERROR HANDLING & RESPONSE FORMAT                           -->
+      <!-- ============================================================ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-semibold">7. Error Handling &amp; Response Format</h2>
+        <div class="bg-white rounded-lg border p-4 space-y-4">
+
+          <div>
+            <h3 class="text-sm font-semibold mb-2">Custom Error Types (pkg/errs/errors.go)</h3>
+            <div class="text-xs font-mono bg-slate-50 rounded p-3">
+              <div>errs.ErrNotFound         → 404 NOT_FOUND</div>
+              <div>errs.ErrUnauthorized     → 401 UNAUTHORIZED</div>
+              <div>errs.ErrForbidden        → 403 FORBIDDEN</div>
+              <div>errs.ErrConflict         → 409 CONFLICT</div>
+              <div>errs.ErrInvalidInput     → 400 INVALID_INPUT</div>
+              <div class="text-slate-400 mt-1">  errs.ErrUserNotFound          wraps ErrNotFound</div>
+              <div class="text-slate-400">  errs.ErrAppNotFound           wraps ErrNotFound</div>
+              <div class="text-slate-400">  errs.ErrConflictDuplicateCode wraps ErrConflict</div>
+              <div class="text-slate-400">  errs.ErrConflictBoundUsers    wraps ErrConflict</div>
+              <div class="text-slate-400">  errs.ErrAppDuplicateCode      wraps ErrConflict</div>
+              <div class="text-slate-400">  errs.ErrPermissionDuplicateCode wraps ErrConflict</div>
+              <div class="text-slate-400">  errs.ErrPermissionInUse       wraps ErrConflict</div>
+              <div class="text-slate-400">  errs.ErrPermissionNotInApp    wraps ErrInvalidInput</div>
+              <div class="text-slate-400">  errs.ErrPresetNameDuplicate   wraps ErrConflict</div>
+              <div class="text-slate-400">  errs.ErrPresetLimitExceeded   wraps ErrConflict</div>
+              <div class="text-slate-400">  errs.ErrPresetPermissionNotInApp wraps ErrInvalidInput</div>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="text-sm font-semibold mb-2">Error Wrapping Pattern</h3>
+            <div class="text-xs space-y-1">
+              <div><span class="text-emerald-600 font-semibold">Good:</span> 121 occurrences of <code class="bg-slate-50 px-1 rounded text-xs">%w</code> error wrapping</div>
+              <div><span class="text-amber-600 font-semibold">Mixed:</span> 146 total <code class="bg-slate-50 px-1 rounded text-xs">fmt.Errorf</code> calls — some use plain strings without wrapping</div>
+              <div><span class="text-red-600 font-semibold">Bad:</span> 17 swallowed errors with <code class="bg-slate-50 px-1 rounded text-xs">_ = doSomething()</code></div>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="text-sm font-semibold mb-2">HTTP Error Response Structure</h3>
+            <pre class="bg-slate-50 rounded p-2 text-xs overflow-x-auto"><code>// Consistent across all endpoints:
+{
+  "message": "human-readable description",
+  "code": "MACHINE_READABLE_CODE"
+}</code></pre>
+          </div>
+
+          <div>
+            <h3 class="text-sm font-semibold mb-2">Error → HTTP Status Mapping</h3>
+            <div class="text-xs">14 of 16 handlers use centralized <code class="bg-slate-50 px-1 rounded text-xs">handleError()</code> method with <code class="bg-slate-50 px-1 rounded text-xs">errors.Is()</code> switch. 2 handlers (acl_handler, user_handler) use inline error handling with slight variations.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 8. TOOLING & PATTERN RECOMMENDATIONS                          -->
+      <!-- ============================================================ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-semibold">8. Tooling &amp; Pattern Recommendations</h2>
+        <div class="bg-white rounded-lg border overflow-hidden">
+          <table class="text-sm w-full">
+            <thead>
+              <tr class="bg-slate-50 text-xs text-slate-500">
+                <th class="text-left px-4 py-2">Area</th>
+                <th class="text-left px-4 py-2">Current</th>
+                <th class="text-left px-4 py-2">Recommended</th>
+                <th class="text-center px-4 py-2">Confidence</th>
+                <th class="text-left px-4 py-2">Why</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-t">
+                <td class="px-4 py-2">Linter</td>
+                <td class="px-4 py-2 text-slate-400">None</td>
+                <td class="px-4 py-2 font-semibold">golangci-lint</td>
+                <td class="text-center"><span class="badge-strong text-xs font-semibold px-2 py-0.5 rounded-full">Strong</span></td>
+                <td class="px-4 py-2 text-xs">Catches errcheck, gocritic, revive warnings automatically</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">Auth middleware</td>
+                <td class="px-4 py-2">Scattered handler checks</td>
+                <td class="px-4 py-2 font-semibold">RBAC middleware decorator</td>
+                <td class="text-center"><span class="badge-strong text-xs font-semibold px-2 py-0.5 rounded-full">Strong</span></td>
+                <td class="px-4 py-2 text-xs">Centralize isSuperAdmin/isAdmin/hasPermissionCode into route-level middleware</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">Audit logging</td>
+                <td class="px-4 py-2">Boilerplate in every service</td>
+                <td class="px-4 py-2 font-semibold">Service decorator / AOP</td>
+                <td class="text-center"><span class="badge-strong text-xs font-semibold px-2 py-0.5 rounded-full">Strong</span></td>
+                <td class="px-4 py-2 text-xs">120+ lines of identical audit code across services → single decorator</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">Structured logging</td>
+                <td class="px-4 py-2 text-slate-400">log.Printf / fmt.Printf</td>
+                <td class="px-4 py-2 font-semibold">slog (stdlib) or zerolog</td>
+                <td class="text-center"><span class="badge-strong text-xs font-semibold px-2 py-0.5 rounded-full">Strong</span></td>
+                <td class="px-4 py-2 text-xs">Go 1.24 has slog built-in; structured logs enable search/aggregation</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">Excel generation</td>
+                <td class="px-4 py-2">In HTTP handlers</td>
+                <td class="px-4 py-2 font-semibold">Extract to service layer</td>
+                <td class="text-center"><span class="badge-strong text-xs font-semibold px-2 py-0.5 rounded-full">Strong</span></td>
+                <td class="px-4 py-2 text-xs">Handlers should only set Content-Disposition header; service generates bytes</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">Router organization</td>
+                <td class="px-4 py-2">All in main.go</td>
+                <td class="px-4 py-2 font-semibold">internal/router/ package</td>
+                <td class="text-center"><span class="badge-worth text-xs font-semibold px-2 py-0.5 rounded-full">Worth Exploring</span></td>
+                <td class="px-4 py-2 text-xs">Separate route registration from DI wiring</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">Transaction management</td>
+                <td class="px-4 py-2">Per-repo implicit tx</td>
+                <td class="px-4 py-2 font-semibold">Unit of Work pattern</td>
+                <td class="text-center"><span class="badge-worth text-xs font-semibold px-2 py-0.5 rounded-full">Worth Exploring</span></td>
+                <td class="px-4 py-2 text-xs">Services need atomic multi-repo operations for consistency</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">Domain models</td>
+                <td class="px-4 py-2">Anemic structs</td>
+                <td class="px-4 py-2 font-semibold">Constructors + validation</td>
+                <td class="text-center"><span class="badge-worth text-xs font-semibold px-2 py-0.5 rounded-full">Worth Exploring</span></td>
+                <td class="px-4 py-2 text-xs">NewRole(), NewPermission() with invariant checks, private fields</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">Graceful shutdown</td>
+                <td class="px-4 py-2 text-slate-400">r.Run() blocks</td>
+                <td class="px-4 py-2 font-semibold">http.Server + signal handling</td>
+                <td class="text-center"><span class="badge-worth text-xs font-semibold px-2 py-0.5 rounded-full">Worth Exploring</span></td>
+                <td class="px-4 py-2 text-xs">Cloud Run sends SIGTERM; need graceful drain for in-flight requests</td>
+              </tr>
+              <tr class="border-t">
+                <td class="px-4 py-2">OpenTelemetry</td>
+                <td class="px-4 py-2 text-slate-400">None</td>
+                <td class="px-4 py-2 font-semibold">otel + Gin middleware</td>
+                <td class="text-center"><span class="badge-spec text-xs font-semibold px-2 py-0.5 rounded-full">Speculative</span></td>
+                <td class="px-4 py-2 text-xs">Request tracing for debugging across services; Cloud Run native integration</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 9. PRIORITIZED ACTION ITEMS                                   -->
+      <!-- ============================================================ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-semibold">9. Prioritized Action Items</h2>
+
+        <div class="bg-white rounded-lg border p-4">
+          <h3 class="text-sm font-semibold text-emerald-700 uppercase tracking-wider mb-3">High Impact, Low Effort (Do First)</h3>
+          <ol class="text-sm space-y-2">
+            <li class="flex items-start gap-2">
+              <span class="bg-emerald-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">1</span>
+              <div><strong>Uncomment production auth middleware</strong> — main.go:225. <span class="text-xs text-slate-400">~5 min</span></div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="bg-emerald-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">2</span>
+              <div><strong>Remove hardcoded credentials</strong> — delete defaultDatabaseURL(), require DATABASE_URL env. <span class="text-xs text-slate-400">~10 min</span></div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="bg-emerald-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">3</span>
+              <div><strong>Add .golangci.yml</strong> — enable errcheck, gocritic, revive, govet. <span class="text-xs text-slate-400">~15 min</span></div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="bg-emerald-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">4</span>
+              <div><strong>Replace panic() with error returns</strong> in auth_middleware JWKS init. <span class="text-xs text-slate-400">~20 min</span></div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="bg-emerald-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">5</span>
+              <div><strong>Add Makefile</strong> — standard targets: build, test, lint, migrate. <span class="text-xs text-slate-400">~20 min</span></div>
+            </li>
+          </ol>
+        </div>
+
+        <div class="bg-white rounded-lg border p-4">
+          <h3 class="text-sm font-semibold text-blue-700 uppercase tracking-wider mb-3">High Impact, Medium Effort</h3>
+          <ol class="text-sm space-y-2">
+            <li class="flex items-start gap-2">
+              <span class="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">6</span>
+              <div><strong>Extract authorization middleware</strong> — move isSuperAdmin/isAdmin/hasPermissionCode to route-level middleware. <span class="text-xs text-slate-400">~2-3 days</span></div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">7</span>
+              <div><strong>Extract Excel generation to service layer</strong> — move cell styling, column widths out of handlers. <span class="text-xs text-slate-400">~1 day</span></div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">8</span>
+              <div><strong>Add structured logging (slog)</strong> — replace all log.Printf with slog.Info/Error. <span class="text-xs text-slate-400">~1 day</span></div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">9</span>
+              <div><strong>Add graceful shutdown</strong> — replace r.Run() with http.Server + SIGTERM handler. <span class="text-xs text-slate-400">~2 hours</span></div>
+            </li>
+          </ol>
+        </div>
+
+        <div class="bg-white rounded-lg border p-4">
+          <h3 class="text-sm font-semibold text-amber-700 uppercase tracking-wider mb-3">Medium Impact, Medium Effort</h3>
+          <ol class="text-sm space-y-2">
+            <li class="flex items-start gap-2">
+              <span class="bg-amber-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">10</span>
+              <div><strong>Split god files</strong> — break abac_sync_service (764), user_service (728), manage_user_repo (705) into focused files. <span class="text-xs text-slate-400">~2-3 days</span></div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="bg-amber-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">11</span>
+              <div><strong>Extract audit logging decorator</strong> — remove boilerplate from 20+ service methods. <span class="text-xs text-slate-400">~2-3 days</span></div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="bg-amber-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">12</span>
+              <div><strong>Deduplicate handler helpers</strong> — shared handleError(), actorFromContext() package. <span class="text-xs text-slate-400">~1 day</span></div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="bg-amber-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">13</span>
+              <div><strong>Move middleware user upsert to repository</strong> — auth_middleware.go directly uses GORM. <span class="text-xs text-slate-400">~4 hours</span></div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 10. RECOMMENDED IMPLEMENTATION ORDER                          -->
+      <!-- ============================================================ -->
+      <section class="deep rounded-xl p-8 text-white space-y-6">
+        <h2 class="text-xl font-semibold">10. Recommended Implementation Order</h2>
+
+        <div class="grid grid-cols-2 gap-8">
+          <div class="space-y-4">
+            <div>
+              <div class="text-xs uppercase tracking-wider text-emerald-400 font-semibold mb-1">Phase 1: Security &amp; Safety (Week 1)</div>
+              <p class="text-sm text-slate-300">~1-2 days effort</p>
+              <ol class="space-y-1 text-sm mt-2">
+                <li>1. Uncomment auth middleware</li>
+                <li>2. Remove hardcoded credentials</li>
+                <li>3. Replace panic() with errors</li>
+                <li>4. Add .golangci.yml + Makefile</li>
+              </ol>
+            </div>
+
+            <div>
+              <div class="text-xs uppercase tracking-wider text-blue-400 font-semibold mb-1">Phase 2: Architecture (Weeks 2-3)</div>
+              <p class="text-sm text-slate-300">~3-5 days effort</p>
+              <ol class="space-y-1 text-sm mt-2">
+                <li>5. Extract authorization middleware</li>
+                <li>6. Extract Excel generation to services</li>
+                <li>7. Add structured logging (slog)</li>
+                <li>8. Add graceful shutdown</li>
+              </ol>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <div class="text-xs uppercase tracking-wider text-amber-400 font-semibold mb-1">Phase 3: Code Reduction (Weeks 4-5)</div>
+              <p class="text-sm text-slate-300">~5-7 days effort</p>
+              <ol class="space-y-1 text-sm mt-2">
+                <li>9. Split god files (sync, user, repo)</li>
+                <li>10. Extract audit logging decorator</li>
+                <li>11. Deduplicate handler helpers</li>
+                <li>12. Move middleware DB access to repo</li>
+              </ol>
+            </div>
+
+            <div>
+              <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Phase 4: Polish (Ongoing)</div>
+              <p class="text-sm text-slate-300">~3-5 days effort</p>
+              <ol class="space-y-1 text-sm mt-2">
+                <li>13. Add OpenTelemetry tracing</li>
+                <li>14. Unit of Work pattern for transactions</li>
+                <li>15. Enrich domain models with constructors</li>
+                <li>16. Create internal/router/ package</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-600 pt-4 text-xs text-slate-400">
+          Total estimated effort: ~3-4 weeks of focused refactoring. Phase 1 addresses critical security gaps immediately. Each phase is independently deployable.
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 11. LAYER VIOLATION MAP                                       -->
+      <!-- ============================================================ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-semibold">11. Layer Violation Map</h2>
+        <div class="bg-white rounded-lg border p-4">
+          <div class="diagram-box overflow-hidden">
+            <pre class="mermaid">
+graph TD
+    subgraph Expected
+        H[Handler Layer]
+        S[Service Layer]
+        R[Repository Layer]
+        D[Domain Layer]
+        H -->|depends on| S
+        S -->|depends on| R
+        S -->|depends on| D
+        R -->|depends on| D
+    end
+
+    subgraph Violations
+        MW[Auth Middleware]
+        SYNC[Sync Upstream Client]
+    end
+
+    MW -->|directly uses GORM DB| DB[(Database)]
+    MW -.->|BYPASSES repo layer| R
+
+    SYNC -->|TODO: incomplete schema| TODO[6 TODO comments]
+
+    H -.->|inline auth checks| AUTH[isSuperAdmin isAdmin]
+    AUTH -.->|should be middleware| MW
+
+    style DB fill:#fef2f2,stroke:#dc2626
+    style AUTH fill:#fef2f2,stroke:#dc2626
+    style TODO fill:#fff7ed,stroke:#d97706
+    linkStyle 5 stroke:#dc2626,stroke-dasharray: 5 5
+    linkStyle 6 stroke:#dc2626,stroke-dasharray: 5 5
+    linkStyle 7 stroke:#dc2626,stroke-dasharray: 5 5
+            </pre>
+          </div>
+          <div class="text-xs text-slate-500 mt-2">
+            Red dashed arrows indicate layer violations. Auth middleware bypasses the repository layer by directly using GORM for user upsert. Handlers contain authorization logic that belongs in middleware.
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 12. METRIC VIOLATIONS SUMMARY                                 -->
+      <!-- ============================================================ -->
+      <section class="space-y-4">
+        <h2 class="text-xl font-semibold">12. Metric Violations Summary</h2>
+        <div class="bg-white rounded-lg border overflow-hidden">
+          <table class="text-sm w-full">
+            <thead>
+              <tr class="bg-slate-50 text-xs text-slate-500">
+                <th class="text-left px-4 py-2">File</th>
+                <th class="text-left px-4 py-2">Metric</th>
+                <th class="text-right px-4 py-2">Actual</th>
+                <th class="text-right px-4 py-2">Threshold</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-t"><td class="font-mono text-xs px-4 py-1.5">abac_sync_service.go</td><td class="text-xs px-4 py-1.5">Lines</td><td class="text-right text-red-600 font-semibold px-4 py-1.5">764</td><td class="text-right text-slate-400 px-4 py-1.5">500</td></tr>
+              <tr class="border-t"><td class="font-mono text-xs px-4 py-1.5">user_service.go</td><td class="text-xs px-4 py-1.5">Lines</td><td class="text-right text-red-600 font-semibold px-4 py-1.5">728</td><td class="text-right text-slate-400 px-4 py-1.5">500</td></tr>
+              <tr class="border-t"><td class="font-mono text-xs px-4 py-1.5">manage_user_repository.go</td><td class="text-xs px-4 py-1.5">Lines</td><td class="text-right text-red-600 font-semibold px-4 py-1.5">705</td><td class="text-right text-slate-400 px-4 py-1.5">500</td></tr>
+              <tr class="border-t"><td class="font-mono text-xs px-4 py-1.5">user_repository.go</td><td class="text-xs px-4 py-1.5">Lines</td><td class="text-right text-red-600 font-semibold px-4 py-1.5">591</td><td class="text-right text-slate-400 px-4 py-1.5">500</td></tr>
+              <tr class="border-t"><td class="font-mono text-xs px-4 py-1.5">ou_service.go</td><td class="text-xs px-4 py-1.5">Lines</td><td class="text-right text-red-600 font-semibold px-4 py-1.5">508</td><td class="text-right text-slate-400 px-4 py-1.5">500</td></tr>
+              <tr class="border-t"><td class="font-mono text-xs px-4 py-1.5">manage_user_handler.go</td><td class="text-xs px-4 py-1.5">Lines</td><td class="text-right text-amber-600 font-semibold px-4 py-1.5">362</td><td class="text-right text-slate-400 px-4 py-1.5">300</td></tr>
+              <tr class="border-t"><td class="font-mono text-xs px-4 py-1.5">role_repository.go</td><td class="text-xs px-4 py-1.5">Lines</td><td class="text-right text-amber-600 font-semibold px-4 py-1.5">417</td><td class="text-right text-slate-400 px-4 py-1.5">300</td></tr>
+              <tr class="border-t"><td class="font-mono text-xs px-4 py-1.5">ou_repository.go</td><td class="text-xs px-4 py-1.5">Lines</td><td class="text-right text-amber-600 font-semibold px-4 py-1.5">378</td><td class="text-right text-slate-400 px-4 py-1.5">300</td></tr>
+              <tr class="border-t"><td class="font-mono text-xs px-4 py-1.5">ou_handler.go</td><td class="text-xs px-4 py-1.5">Lines</td><td class="text-right text-amber-600 font-semibold px-4 py-1.5">316</td><td class="text-right text-slate-400 px-4 py-1.5">300</td></tr>
+              <tr class="border-t"><td class="font-mono text-xs px-4 py-1.5">auth_middleware.go</td><td class="text-xs px-4 py-1.5">Lines</td><td class="text-right text-amber-600 font-semibold px-4 py-1.5">306</td><td class="text-right text-slate-400 px-4 py-1.5">300</td></tr>
+              <tr class="border-t"><td class="font-mono text-xs px-4 py-1.5">role_handler.go</td><td class="text-xs px-4 py-1.5">Lines</td><td class="text-right text-amber-600 font-semibold px-4 py-1.5">302</td><td class="text-right text-slate-400 px-4 py-1.5">300</td></tr>
+              <tr class="border-t"><td class="font-mono text-xs px-4 py-1.5">abac_assignment_service.go</td><td class="text-xs px-4 py-1.5">Constructor deps</td><td class="text-right text-red-600 font-semibold px-4 py-1.5">7</td><td class="text-right text-slate-400 px-4 py-1.5">5</td></tr>
+              <tr class="border-t"><td class="font-mono text-xs px-4 py-1.5">abac_sync_service.go</td><td class="text-xs px-4 py-1.5">Constructor deps</td><td class="text-right text-red-600 font-semibold px-4 py-1.5">11</td><td class="text-right text-slate-400 px-4 py-1.5">5</td></tr>
+              <tr class="border-t"><td class="font-mono text-xs px-4 py-1.5">role_repository.go (interface)</td><td class="text-xs px-4 py-1.5">Methods</td><td class="text-right text-amber-600 font-semibold px-4 py-1.5">12</td><td class="text-right text-slate-400 px-4 py-1.5">10</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </body>
+</html>
