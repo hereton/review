@@ -1,373 +1,391 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <title>Architecture Reviews</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Z.ai Quota Monitor</title>
+
+    <style>
+      * {
+        box-sizing: border-box;
+        font-family: Inter, Arial, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #0f172a;
+        color: white;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        margin-bottom: 20px;
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      input, select {
+        flex: 1;
+        min-width: 150px;
+        padding: 12px;
+        border-radius: 8px;
+        border: none;
+      }
+
+      input {
+        min-width: 200px;
+      }
+
+      select {
+        min-width: 150px;
+        max-width: 200px;
+        cursor: pointer;
+      }
+
+      button {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        background: #2563eb;
+        color: white;
+        font-weight: 600;
+      }
+
+      button:hover {
+        background: #1d4ed8;
+      }
+
+      #status {
+        margin-bottom: 16px;
+        color: #94a3b8;
+      }
+
+      .card {
+        background: #1e293b;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 16px;
+      }
+
+      .title-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+
+      .progress {
+        height: 16px;
+        background: #334155;
+        border-radius: 999px;
+        overflow: hidden;
+      }
+
+      .bar {
+        height: 100%;
+        width: 0;
+        transition: width 0.3s ease;
+        background: linear-gradient(90deg, #10b981, #22c55e);
+      }
+
+      .warning {
+        background: linear-gradient(90deg, #f59e0b, #f97316);
+      }
+
+      .danger {
+        background: linear-gradient(90deg, #ef4444, #dc2626);
+      }
+
+      .meta {
+        margin-top: 12px;
+        color: #cbd5e1;
+        font-size: 14px;
+      }
+
+      .error {
+        color: #f87171;
+      }
+    </style>
   </head>
-  <body class="bg-stone-50 text-slate-900 font-sans">
-    <main class="max-w-3xl mx-auto px-6 py-16 space-y-8">
-      <header class="space-y-2">
-        <h1 class="text-2xl font-bold tracking-tight">Architecture Reviews</h1>
-        <p class="text-slate-500">Commercial Platform — Permission Center</p>
-      </header>
+  <body>
+    <div class="container">
+      <h1>Z.ai Quota Usage</h1>
 
-      <section class="space-y-2">
-        <h2 class="text-lg font-semibold">Project 01</h2>
-        <ul class="divide-y divide-slate-200 border-t border-slate-200">
-          <li>
-            <a href="api-01-audit-report-2026-06-04.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium">Permission Center API 01 — Audit Report</p>
-                <p class="text-sm text-slate-500">2026-06-04</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-01-db-audit-report-2026-06-04.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium">Permission Center API 01 — DB Audit Report</p>
-                <p class="text-sm text-slate-500">2026-06-04</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="web-01-audit-report-2026-06-04.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium">Permission Center Web 01 — Audit Report</p>
-                <p class="text-sm text-slate-500">2026-06-04</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-01-audit-report-2026-05-29.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center API 01 — Audit Report (previous)</p>
-                <p class="text-sm text-slate-400">2026-05-29</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-01-db-audit-report-2026-05-29.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center API 01 — DB Audit Report (previous)</p>
-                <p class="text-sm text-slate-400">2026-05-29</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="web-01-audit-report-2026-05-29.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center Web 01 — Audit Report (previous)</p>
-                <p class="text-sm text-slate-400">2026-05-29</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-01-audit-report-2026-05-27.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center API 01 — Audit Report (previous)</p>
-                <p class="text-sm text-slate-400">2026-05-27</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-01-db-audit-report-2026-05-27.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center API 01 — DB Audit Report (previous)</p>
-                <p class="text-sm text-slate-400">2026-05-27</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="web-01-audit-report-2026-05-27.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center Web 01 — Audit Report (previous)</p>
-                <p class="text-sm text-slate-400">2026-05-27</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-        </ul>
-      </section>
+      <div class="toolbar">
+        <select id="keySelector" onchange="selectKey(this.value)">
+          <option value="">No keys</option>
+        </select>
+        <input type="password" id="apiKey" placeholder="Enter Z.ai API Key" />
+        <input type="text" id="keyName" placeholder="Key name (e.g., Project A)" style="max-width: 200px;" />
+        <button onclick="addNewKey()">Add New Key</button>
+        <button onclick="deleteCurrentKey()">Delete Key</button>
+        <button onclick="loadQuota()">Refresh</button>
+      </div>
 
-      <section class="space-y-2">
-        <h2 class="text-lg font-semibold">Project 02</h2>
-        <ul class="divide-y divide-slate-200 border-t border-slate-200">
-          <li>
-            <a href="api-02-audit-report-2026-06-04.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium">Permission Center API 02 — Audit Report</p>
-                <p class="text-sm text-slate-500">2026-06-04</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-02-db-audit-report-2026-06-04.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium">Permission Center API 02 — DB Audit Report</p>
-                <p class="text-sm text-slate-500">2026-06-04</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="web-02-audit-report-2026-06-04.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium">Permission Center Web 02 — Audit Report</p>
-                <p class="text-sm text-slate-500">2026-06-04</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-02-audit-report-2026-05-29.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center API 02 — Audit Report (previous)</p>
-                <p class="text-sm text-slate-400">2026-05-29</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-02-db-audit-report-2026-05-29.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center API 02 — DB Audit Report (previous)</p>
-                <p class="text-sm text-slate-400">2026-05-29</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="web-02-audit-report-2026-05-29.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center Web 02 — Audit Report (previous)</p>
-                <p class="text-sm text-slate-400">2026-05-29</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-        </ul>
-      </section>
+      <div id="status">Waiting for API key...</div>
+      <div id="results"></div>
+    </div>
 
-      <section class="space-y-2">
-        <h2 class="text-lg font-semibold">Project 03</h2>
-        <ul class="divide-y divide-slate-200 border-t border-slate-200">
-          <li>
-            <a href="api-03-audit-report-2026-06-04.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium">Permission Center API 03 — Audit Report</p>
-                <p class="text-sm text-slate-500">2026-06-04</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-03-db-audit-report-2026-06-04.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium">Permission Center API 03 — DB Audit Report</p>
-                <p class="text-sm text-slate-500">2026-06-04</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="web-03-audit-report-2026-06-04.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium">Permission Center Web 03 — Audit Report</p>
-                <p class="text-sm text-slate-500">2026-06-04</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-03-audit-report-2026-05-26.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center API 03 — Audit Report (previous)</p>
-                <p class="text-sm text-slate-400">2026-05-26</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-03-db-audit-report-2026-05-26.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center API 03 — DB Audit Report (previous)</p>
-                <p class="text-sm text-slate-400">2026-05-26</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="web-03-audit-report-2026-05-26.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center Web 03 — Audit Report (previous)</p>
-                <p class="text-sm text-slate-400">2026-05-26</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-03-architecture-review-2026-05-25.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center API 03</p>
-                <p class="text-sm text-slate-400">2026-05-25</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-03-architecture-review-backend-2026-05-25.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center API 03 — Backend</p>
-                <p class="text-sm text-slate-400">2026-05-25</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="web-03-architecture-review-2026-05-25.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center Web 03</p>
-                <p class="text-sm text-slate-400">2026-05-25</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="web-03-architecture-review-frontend-2026-05-25.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center Web 03 — Frontend</p>
-                <p class="text-sm text-slate-400">2026-05-25</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-03-db-review-2026-05-25.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center API 03 — DB Review</p>
-                <p class="text-sm text-slate-400">2026-05-25</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-        </ul>
-      </section>
+    <script>
+      const API_URL = "https://api.z.ai/api/monitor/usage/quota/limit";
 
-      <section class="space-y-2">
-        <h2 class="text-lg font-semibold">Project 04</h2>
-        <ul class="divide-y divide-slate-200 border-t border-slate-200">
-          <li>
-            <a href="api-04-audit-report-2026-06-04.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium">Permission Center API 04 — Audit Report</p>
-                <p class="text-sm text-slate-500">2026-06-04</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-04-db-audit-report-2026-06-04.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium">Permission Center API 04 — DB Audit Report</p>
-                <p class="text-sm text-slate-500">2026-06-04</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="web-04-audit-report-2026-06-04.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium">Permission Center Web 04 — Audit Report</p>
-                <p class="text-sm text-slate-500">2026-06-04</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-04-audit-report-2026-05-26.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center API 04 — Audit Report (previous)</p>
-                <p class="text-sm text-slate-400">2026-05-26</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-04-db-audit-report-2026-05-26.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center API 04 — DB Audit Report (previous)</p>
-                <p class="text-sm text-slate-400">2026-05-26</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="web-04-audit-report-2026-05-26.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center Web 04 — Audit Report (previous)</p>
-                <p class="text-sm text-slate-400">2026-05-26</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-04-architecture-review-2026-05-25.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center API 04</p>
-                <p class="text-sm text-slate-400">2026-05-25</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-04-architecture-review-backend-2026-05-25.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center API 04 — Backend</p>
-                <p class="text-sm text-slate-400">2026-05-25</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="web-04-architecture-review-2026-05-25.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center Web 04</p>
-                <p class="text-sm text-slate-400">2026-05-25</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="web-04-architecture-review-frontend-2026-05-25.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center Web 04 — Frontend</p>
-                <p class="text-sm text-slate-400">2026-05-25</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-          <li>
-            <a href="api-04-db-review-2026-05-25.html" class="flex items-center justify-between py-4 hover:bg-slate-100 -mx-3 px-3 rounded transition">
-              <div>
-                <p class="font-medium text-slate-400">Permission Center API 04 — DB Review</p>
-                <p class="text-sm text-slate-400">2026-05-25</p>
-              </div>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
-          </li>
-        </ul>
-      </section>
-    </main>
+      function getAllKeys() {
+        return JSON.parse(localStorage.getItem("zai_api_keys") || "[]");
+      }
+
+      function saveAllKeys(keys) {
+        localStorage.setItem("zai_api_keys", JSON.stringify(keys));
+      }
+
+      function migrateOldKey() {
+        const oldKey = localStorage.getItem("zai_api_key");
+        if (oldKey && !localStorage.getItem("zai_api_keys")) {
+          localStorage.setItem("zai_api_keys", JSON.stringify([{
+            id: Date.now().toString(),
+            name: "Migrated Key",
+            key: oldKey
+          }]));
+        }
+      }
+
+      function populateKeySelector() {
+        const keys = getAllKeys();
+        const selector = document.getElementById("keySelector");
+        selector.innerHTML = keys.length === 0
+          ? '<option value="">No keys</option>'
+          : keys.map(k => `<option value="${k.id}">${k.name}</option>`).join("");
+      }
+
+      function selectKey(id) {
+        const keys = getAllKeys();
+        const key = keys.find(k => k.id === id);
+        if (key) {
+          document.getElementById("apiKey").value = key.key;
+          document.getElementById("keyName").value = key.name;
+          localStorage.setItem("zai_api_key", key.key);
+        }
+      }
+
+      function addNewKey() {
+        const keys = getAllKeys();
+        const name = prompt("Enter a name for this key (e.g., Project A):");
+        if (!name) return;
+
+        const newKey = {
+          id: Date.now().toString(),
+          name: name,
+          key: ""
+        };
+        keys.push(newKey);
+        saveAllKeys(keys);
+        populateKeySelector();
+        selectKey(newKey.id);
+      }
+
+      function deleteCurrentKey() {
+        const keys = getAllKeys();
+        const currentId = document.getElementById("keySelector").value;
+
+        if (!currentId || keys.length === 0) {
+          alert("No key selected");
+          return;
+        }
+
+        if (keys.length <= 1) {
+          alert("Cannot delete the last key");
+          return;
+        }
+
+        if (!confirm(`Delete this key? This action cannot be undone.`)) {
+          return;
+        }
+
+        const filtered = keys.filter(k => k.id !== currentId);
+        saveAllKeys(filtered);
+        populateKeySelector();
+        if (filtered.length > 0) selectKey(filtered[0].id);
+        else {
+          document.getElementById("apiKey").value = "";
+          document.getElementById("keyName").value = "";
+        }
+      }
+
+      function updateCurrentKey() {
+        const selector = document.getElementById("keySelector");
+        const currentId = selector.value;
+
+        if (!currentId) {
+          // Create new key if none exists
+          addNewKey();
+          return;
+        }
+
+        const keys = getAllKeys();
+        const key = keys.find(k => k.id === currentId);
+        if (key) {
+          key.key = document.getElementById("apiKey").value;
+          key.name = document.getElementById("keyName").value;
+          saveAllKeys(keys);
+
+          // Update selector display if name changed
+          const selectorOption = selector.querySelector(`option[value="${currentId}"]`);
+          if (selectorOption) selectorOption.textContent = key.name;
+        }
+      }
+
+      function formatNumber(n) {
+        return new Intl.NumberFormat().format(n ?? 0);
+      }
+
+      function formatDate(ms) {
+        if (!ms) return "-";
+        return new Date(ms).toLocaleString();
+      }
+
+      function formatCountdown(ms, now = Date.now()) {
+        if (!ms) return "-";
+        const remaining = ms - now;
+        if (remaining <= 0) return "Resetting...";
+        const hours = Math.floor(remaining / 3600000);
+        const minutes = Math.floor((remaining % 3600000) / 60000);
+        const seconds = Math.floor((remaining % 60000) / 1000);
+        return `${hours}h ${minutes}m ${seconds}s`;
+      }
+
+      function saveKey() {
+        updateCurrentKey();
+      }
+
+      function loadSavedKey() {
+        migrateOldKey();
+        populateKeySelector();
+
+        const keys = getAllKeys();
+        if (keys.length > 0) {
+          selectKey(keys[0].id);
+        }
+      }
+
+      function createCard(limit, index) {
+        const pct = limit.percentage ?? 0;
+
+        let cls = "";
+        if (pct >= 90) cls = "danger";
+        else if (pct >= 75) cls = "warning";
+
+        return `
+        <div class="card">
+            <div class="title-row">
+                <strong>${limit.type} ${index === 1 ? "5 hours" : "1 week"}</strong>
+                <strong>${pct.toFixed(2)}%</strong>
+            </div>
+
+            <div class="progress">
+                <div class="bar ${cls}"
+                     style="width:${pct}%">
+                </div>
+            </div>
+
+            <div class="meta">
+                ${
+                  limit.nextResetTime
+                    ? `<div class="countdown" data-reset="${limit.nextResetTime}" title="${formatDate(limit.nextResetTime)}">
+                             Reset: ${formatCountdown(limit.nextResetTime)}
+                           </div>`
+                    : ""
+                }
+            </div>
+        </div>
+    `;
+      }
+
+      async function loadQuota() {
+        const apiKey = document.getElementById("apiKey").value.trim();
+
+        if (!apiKey) {
+          alert("Please enter API key");
+          return;
+        }
+
+        saveKey();
+
+        const status = document.getElementById("status");
+        const results = document.getElementById("results");
+
+        status.textContent = "Loading...";
+        results.innerHTML = "";
+
+        try {
+          const res = await fetch(API_URL, {
+            method: "GET",
+            headers: {
+              Authorization: apiKey,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+
+          const data = await res.json();
+
+          const limits = data?.data?.limits || [];
+
+          status.textContent = `Updated: ${new Date().toLocaleTimeString()}`;
+
+          if (!limits.length) {
+            results.innerHTML = "<div class='card'>No quota data found.</div>";
+            return;
+          }
+
+          results.innerHTML = limits.map(createCard).join("");
+        } catch (err) {
+          status.innerHTML = `<span class="error">
+                ${err.message}
+             </span>`;
+        }
+      }
+
+      loadSavedKey();
+
+      setInterval(() => {
+        const key = document.getElementById("apiKey").value.trim();
+
+        if (key) {
+          loadQuota();
+        }
+      }, 60000);
+
+      setInterval(() => {
+        document.querySelectorAll('.countdown').forEach(el => {
+          const resetTime = el.dataset.reset;
+          if (resetTime) {
+            el.textContent = "Reset: " + formatCountdown(Number(resetTime));
+          }
+        });
+      }, 1000);
+
+      // Auto-save when user types in key fields
+      document.getElementById("apiKey").addEventListener("input", () => {
+        const selector = document.getElementById("keySelector");
+        if (selector.value) updateCurrentKey();
+      });
+
+      document.getElementById("keyName").addEventListener("input", () => {
+        const selector = document.getElementById("keySelector");
+        if (selector.value) updateCurrentKey();
+      });
+    </script>
   </body>
 </html>
