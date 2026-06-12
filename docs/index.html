@@ -140,21 +140,42 @@
       const API_URL = "https://api.z.ai/api/monitor/usage/quota/limit";
 
       function getAllKeys() {
-        return JSON.parse(localStorage.getItem("zai_api_keys") || "[]");
+        return JSON.parse(sessionStorage.getItem("zai_api_keys") || "[]");
       }
 
       function saveAllKeys(keys) {
-        localStorage.setItem("zai_api_keys", JSON.stringify(keys));
+        sessionStorage.setItem("zai_api_keys", JSON.stringify(keys));
       }
 
       function migrateOldKey() {
-        const oldKey = localStorage.getItem("zai_api_key");
-        if (oldKey && !localStorage.getItem("zai_api_keys")) {
-          localStorage.setItem("zai_api_keys", JSON.stringify([{
+        // Check if we already have keys in sessionStorage
+        if (sessionStorage.getItem("zai_api_keys")) {
+          return;
+        }
+
+        // Check for old localStorage key and migrate it
+        const oldLocalStorageKey = localStorage.getItem("zai_api_key");
+        if (oldLocalStorageKey) {
+          sessionStorage.setItem("zai_api_keys", JSON.stringify([{
             id: Date.now().toString(),
             name: "Migrated Key",
-            key: oldKey
+            key: oldLocalStorageKey
           }]));
+          // Clean up old localStorage for security
+          localStorage.removeItem("zai_api_key");
+          return;
+        }
+
+        // Check for old sessionStorage single-key format
+        const oldSessionKey = sessionStorage.getItem("zai_api_key");
+        if (oldSessionKey) {
+          sessionStorage.setItem("zai_api_keys", JSON.stringify([{
+            id: Date.now().toString(),
+            name: "Migrated Key",
+            key: oldSessionKey
+          }]));
+          // Clean up old single-key format
+          sessionStorage.removeItem("zai_api_key");
         }
       }
 
@@ -172,7 +193,7 @@
         if (key) {
           document.getElementById("apiKey").value = key.key;
           document.getElementById("keyName").value = key.name;
-          localStorage.setItem("zai_api_key", key.key);
+          sessionStorage.setItem("zai_api_key", key.key);
         }
       }
 
